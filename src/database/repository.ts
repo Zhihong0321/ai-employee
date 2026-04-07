@@ -656,13 +656,13 @@ export class Repository {
       const result = await this.pool.query(
         `
         INSERT INTO messages (
-          external_id, chat_id, session_id, sender_number, sender_name, direction, kind,
+          external_id, chat_id, sender_number, sender_name, direction, kind,
           text_content, transcript, analysis, media_path, mime_type, raw_payload, occurred_at,
           contact_id, contact_number, author_number, author_name, is_from_me
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7,
-          $8, $9, $10, $11, $12, $13::jsonb, $14,
-          $15, $16, $17, $18, $19
+          $1, $2, $3, $4, $5, $6,
+          $7, $8, $9, $10, $11, $12::jsonb, $13,
+          $14, $15, $16, $17, $18
         )
         ON CONFLICT (external_id) DO NOTHING
         RETURNING id
@@ -670,25 +670,24 @@ export class Repository {
         [
           input.externalId,
           input.chatId,
-          input.sessionId ?? input.chatId,
           input.senderNumber,
           input.senderName ?? null,
           input.direction,
           input.kind,
           input.text,
-        input.transcript ?? null,
+          input.transcript ?? null,
           input.analysis ?? null,
           input.mediaPath ?? null,
           input.mimeType ?? null,
           JSON.stringify(input.rawPayload ?? {}),
           input.occurredAt,
-        input.contactId ?? null,
-        input.contactNumber ?? input.senderNumber,
-        input.authorNumber ?? null,
-        input.authorName ?? null,
-        input.isFromMe ?? input.direction === "outbound"
-      ]
-    );
+          input.contactId ?? null,
+          input.contactNumber ?? input.senderNumber,
+          input.authorNumber ?? null,
+          input.authorName ?? null,
+          input.isFromMe ?? input.direction === "outbound"
+        ]
+      );
 
     return result.rowCount > 0;
   }
