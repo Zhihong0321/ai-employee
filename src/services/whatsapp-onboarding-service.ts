@@ -40,7 +40,11 @@ export class WhatsAppOnboardingService {
     updatedAt: new Date().toISOString()
   };
 
-  constructor(private readonly authDir: string) {}
+  constructor(
+    private readonly authDir: string,
+    private readonly mirrorAuthDir?: string,
+    private readonly onProvisioned?: () => Promise<void> | void
+  ) {}
 
   getState(): WhatsAppOnboardingState {
     return this.state;
@@ -79,6 +83,7 @@ export class WhatsAppOnboardingService {
 
     await fs.rm(this.authDir, { recursive: true, force: true });
     await fs.mkdir(this.authDir, { recursive: true });
+    await this.mirrorAuthState();
 
     this.setState({
       status: "idle",
@@ -123,6 +128,7 @@ export class WhatsAppOnboardingService {
         }
 
         if (update.connection === "open") {
+          await this.mirrorAuthState();
           this.setState({
             status: "connected",
             qrText: null,
@@ -130,6 +136,8 @@ export class WhatsAppOnboardingService {
             userId: this.socket.user?.id ?? null,
             userName: this.socket.user?.name ?? null
           });
+
+          await this.onProvisioned?.();
         }
 
         if (update.connection === "close") {
@@ -197,6 +205,15 @@ export class WhatsAppOnboardingService {
     } finally {
       this.restarting = false;
     }
+  }
+
+  private async mirrorAuthState(): Promise<void> {
+    if (!this.mirrorAuthDir) {
+      return;
+    }
+
+    await fs.mkdir(this.mirrorAuthDir, { recursive: true });
+    await fs.cp(this.authDir, this.mirrorAuthDir, { recursive: true, force: true });
   }
 
   private setState(next: Omit<WhatsAppOnboardingState, "updatedAt">): void {

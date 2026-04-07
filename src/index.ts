@@ -127,7 +127,9 @@ async function main(): Promise<void> {
   const schedulerService = new SchedulerService(repository, agentService, debugService, agentRunner);
   const healthService = new HealthService(config, database, openAiService, companyDbService, whatsappService);
   const whatsappOnboardingService = new WhatsAppOnboardingService(
-    path.join(path.dirname(config.whatsappAuthDir), "baileys-onboarding-auth")
+    path.join(path.dirname(config.whatsappAuthDir), "baileys-onboarding-auth"),
+    config.whatsappAuthDir,
+    () => whatsappService.restart()
   );
   const app = createApp({
     config,

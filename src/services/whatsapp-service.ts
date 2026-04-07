@@ -30,6 +30,7 @@ export class WhatsAppService {
 
   private socket: any;
   private connected = false;
+  private restarting = false;
   private readonly recentExternalIds = new RecentExternalIdCache(WhatsAppService.RECENT_MESSAGE_TTL_MS);
 
   constructor(
@@ -87,6 +88,21 @@ export class WhatsAppService {
     return userId ? normalizeChatNumber(userId) : null;
   }
 
+  async restart(): Promise<void> {
+    if (this.restarting) {
+      return;
+    }
+
+    this.restarting = true;
+
+    try {
+      await this.stopSocket();
+      await this.start();
+    } finally {
+      this.restarting = false;
+    }
+  }
+
   async start(): Promise<void> {
     await fs.mkdir(this.authDir, { recursive: true });
     const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
@@ -112,8 +128,8 @@ export class WhatsAppService {
       if (update.connection === "close") {
         this.connected = false;
         const shouldReconnect = update.lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-        if (shouldReconnect) {
-          void this.start();
+      if (shouldReconnect) {
+          void this.restart();
         }
       }
     });
@@ -151,6 +167,26 @@ export class WhatsAppService {
         }
       }
     });
+  }
+
+  private async stopSocket(): Promise<void> {
+    try {
+      this.connected = false;
+
+      if (this.socket?.ev?.removeAllListeners) {
+        this.socket.ev.removeAllListeners();
+      }
+      if (this.socket?.end) {
+        this.socket.end(undefined);
+      }
+      if (this.socket?.ws?.close) {
+        this.socket.ws.close();
+      }
+    } catch {
+      // Best-effort shutdown only.
+    } finally {
+      this.socket = undefined;
+    }
   }
 
   async sendText(chatIdOrNumber: string, text: string): Promise<void> {
