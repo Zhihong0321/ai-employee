@@ -168,6 +168,7 @@ export type AuthorityContext = {
 export type StoredMessageInput = {
   externalId: string;
   chatId: string;
+  sessionId?: string | null;
   direction: Direction;
   kind: MessageKind;
   text: string;
