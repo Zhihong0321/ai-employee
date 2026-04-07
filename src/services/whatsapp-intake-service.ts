@@ -79,20 +79,24 @@ export class WhatsAppIntakeService {
         runId,
         messageExternalId: message.externalId,
         stage: "classification",
-        summary: "Skipped duplicate inbound message",
+        summary: "Inbound message already recorded, continuing AI handling",
         payload: {
-          disposition: "duplicate",
+          disposition: "duplicate_record_only",
           senderNumber: contactNumber
         },
         requiredMode: "debug_basic"
       });
-      await this.repository.addDecisionLog(message.externalId, "message_intake_skip", "Skipped duplicate inbound message", {
-        disposition: "duplicate"
-      });
-      return;
+      await this.repository.addDecisionLog(
+        message.externalId,
+        "message_intake_duplicate_record",
+        "Inbound message was already recorded before intake; continuing AI handling",
+        {
+          disposition: "duplicate_record_only"
+        }
+      );
+    } else {
+      await this.captureKnowledgeAsset(message, contactNumber);
     }
-
-    await this.captureKnowledgeAsset(message, contactNumber);
 
     const fastStoreOnlyDecision = getFastStoreOnlyDecision(message);
     if (fastStoreOnlyDecision) {
