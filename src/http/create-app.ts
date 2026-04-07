@@ -928,14 +928,72 @@ export function createApp(input: {
     return Array.from(uniqueEntries.values());
   };
 
+  const getRequestAdminToken = (req: express.Request): string => {
+    const rawHeader = req.header("x-admin-token");
+    return typeof rawHeader === "string" ? rawHeader.trim() : "";
+  };
+
+  const logAdminAuthFailure = (
+    req: express.Request,
+    reason: "missing_config" | "missing_token" | "token_mismatch",
+    providedToken: string
+  ) => {
+    const forwardedFor = req.header("x-forwarded-for");
+    console.warn("[admin-auth] request denied", {
+      method: req.method,
+      path: req.path,
+      reason,
+      hasProvidedToken: providedToken.length > 0,
+      providedTokenLength: providedToken.length,
+      expectedTokenLength: input.config.adminApiToken?.length ?? 0,
+      remoteAddress: forwardedFor || req.ip || req.socket.remoteAddress || null
+    });
+  };
+
+  const sendAdminAuthFailure = (
+    req: express.Request,
+    res: express.Response,
+    reason: "missing_config" | "missing_token" | "token_mismatch"
+  ) => {
+    const providedToken = getRequestAdminToken(req);
+    logAdminAuthFailure(req, reason, providedToken);
+
+    if (reason === "missing_config") {
+      res.status(503).json({
+        error: "ADMIN_API_TOKEN is not configured on the live server.",
+        code: "ADMIN_AUTH_NOT_CONFIGURED",
+        detail: "Set ADMIN_API_TOKEN in Railway, redeploy, then re-enter the same token in this page."
+      });
+      return;
+    }
+
+    const detail =
+      reason === "missing_token"
+        ? "This request requires the x-admin-token header. Enter the live ADMIN_API_TOKEN in the page before saving or testing."
+        : "The provided admin token did not match the live server token. Check Railway ADMIN_API_TOKEN for hidden spaces or stale values, redeploy after env changes, then re-enter the exact token here.";
+
+    res.status(401).json({
+      error: "Admin token missing or invalid.",
+      code: "ADMIN_AUTH_FAILED",
+      detail,
+      adminProtected: true
+    });
+  };
+
   const requireAdminIfConfigured = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (!input.config.adminApiToken) {
       next();
       return;
     }
 
-    if (req.header("x-admin-token") !== input.config.adminApiToken) {
-      res.status(401).json({ error: "Unauthorized" });
+    const providedToken = getRequestAdminToken(req);
+    if (!providedToken) {
+      sendAdminAuthFailure(req, res, "missing_token");
+      return;
+    }
+
+    if (providedToken !== input.config.adminApiToken) {
+      sendAdminAuthFailure(req, res, "token_mismatch");
       return;
     }
 
@@ -944,12 +1002,18 @@ export function createApp(input: {
 
   const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (!input.config.adminApiToken) {
-      res.status(503).json({ error: "ADMIN_API_TOKEN is not configured" });
+      sendAdminAuthFailure(req, res, "missing_config");
       return;
     }
 
-    if (req.header("x-admin-token") !== input.config.adminApiToken) {
-      res.status(401).json({ error: "Unauthorized" });
+    const providedToken = getRequestAdminToken(req);
+    if (!providedToken) {
+      sendAdminAuthFailure(req, res, "missing_token");
+      return;
+    }
+
+    if (providedToken !== input.config.adminApiToken) {
+      sendAdminAuthFailure(req, res, "token_mismatch");
       return;
     }
 

@@ -161,6 +161,26 @@ export function renderCompanyDbConfigPage(input: {
         previewConfigured.textContent = status.configured ? "yes" : "no";
       }
 
+      function readErrorMessage(response, body, fallback) {
+        if (body && typeof body.detail === "string" && body.detail.trim()) {
+          return body.detail.trim();
+        }
+
+        if (body && typeof body.error === "string" && body.error.trim()) {
+          return body.error.trim();
+        }
+
+        if (response && response.status === 401) {
+          return "Admin token was rejected. Check Railway ADMIN_API_TOKEN, redeploy after env changes, then re-enter the exact same token here.";
+        }
+
+        if (response && response.status === 503) {
+          return "ADMIN_API_TOKEN is not configured on the live server yet.";
+        }
+
+        return fallback;
+      }
+
       async function loadConfig() {
         statusEl.textContent = "Loading company DB config...";
         try {
@@ -169,7 +189,7 @@ export function renderCompanyDbConfigPage(input: {
           });
           const body = await response.json().catch(() => ({}));
           if (!response.ok) {
-            throw new Error(body.error || "Failed to load company DB config");
+            throw new Error(readErrorMessage(response, body, "Failed to load company DB config"));
           }
 
           const config = body.config || {};
@@ -198,7 +218,7 @@ export function renderCompanyDbConfigPage(input: {
           });
           const body = await response.json().catch(() => ({}));
           if (!response.ok) {
-            throw new Error(body.error || "Failed to save company DB config");
+            throw new Error(readErrorMessage(response, body, "Failed to save company DB config"));
           }
 
           connectionString.value = body.config?.connectionString || "";
@@ -223,7 +243,7 @@ export function renderCompanyDbConfigPage(input: {
           });
           const body = await response.json().catch(() => ({}));
           if (!response.ok) {
-            throw new Error(body.error || "Failed to test company DB connection");
+            throw new Error(readErrorMessage(response, body, "Failed to test company DB connection"));
           }
 
           renderPreview(body);
