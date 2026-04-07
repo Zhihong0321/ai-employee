@@ -25,6 +25,11 @@ type WhatsAppMessageHandler = {
   handleOwnMessage?: (message: InboundMessage) => Promise<void>;
 };
 
+type WhatsAppMessageRecorder = {
+  handleInboundMessage: (message: InboundMessage) => Promise<void>;
+  handleOwnMessage?: (message: InboundMessage) => Promise<void>;
+};
+
 export class WhatsAppService {
   private static readonly RECENT_MESSAGE_TTL_MS = 10 * 60 * 1000;
 
@@ -41,6 +46,7 @@ export class WhatsAppService {
     private readonly options?: {
       enableMediaAi?: boolean;
       captureOwnMessages?: boolean;
+      messageRecorder?: WhatsAppMessageRecorder;
     }
   ) {}
 
@@ -153,12 +159,18 @@ export class WhatsAppService {
             : await this.enrichMediaFields(message, inbound);
 
           if (message.key?.fromMe) {
+            if (this.options?.messageRecorder?.handleOwnMessage) {
+              await this.options.messageRecorder.handleOwnMessage(preparedInbound);
+            }
             if (this.options?.captureOwnMessages && this.agentService.handleOwnMessage) {
               await this.agentService.handleOwnMessage(preparedInbound);
             }
             continue;
           }
 
+          if (this.options?.messageRecorder?.handleInboundMessage) {
+            await this.options.messageRecorder.handleInboundMessage(preparedInbound);
+          }
           await this.agentService.handleInboundMessage(preparedInbound);
         } catch (error) {
           const externalId = this.resolveExternalId(message, this.resolveCanonicalChatJid(message));

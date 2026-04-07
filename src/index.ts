@@ -112,7 +112,8 @@ async function main(): Promise<void> {
 
   const whatsappService = new WhatsAppService(config.whatsappAuthDir, mediaService, openAiService, whatsappIntakeService, {
     enableMediaAi: config.whatsappMode === "agent",
-    captureOwnMessages: true
+    captureOwnMessages: true,
+    messageRecorder: whatsappPlaygroundService
   });
 
   const sender = {
