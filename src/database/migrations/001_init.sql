@@ -43,11 +43,53 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS external_id TEXT,
   ADD COLUMN IF NOT EXISTS chat_id TEXT;
 
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS sender_number TEXT,
+  ADD COLUMN IF NOT EXISTS sender_name TEXT,
+  ADD COLUMN IF NOT EXISTS direction TEXT,
+  ADD COLUMN IF NOT EXISTS kind TEXT,
+  ADD COLUMN IF NOT EXISTS text_content TEXT,
+  ADD COLUMN IF NOT EXISTS transcript TEXT,
+  ADD COLUMN IF NOT EXISTS analysis TEXT,
+  ADD COLUMN IF NOT EXISTS media_path TEXT,
+  ADD COLUMN IF NOT EXISTS mime_type TEXT,
+  ADD COLUMN IF NOT EXISTS raw_payload JSONB,
+  ADD COLUMN IF NOT EXISTS occurred_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ;
+
 UPDATE messages
-SET chat_id = COALESCE(chat_id, sender_number)
-WHERE chat_id IS NULL;
+SET
+  external_id = COALESCE(external_id, 'legacy-message-' || id::text),
+  sender_number = COALESCE(sender_number, chat_id, 'legacy-unknown'),
+  direction = COALESCE(direction, 'inbound'),
+  kind = COALESCE(kind, 'text'),
+  raw_payload = COALESCE(raw_payload, '{}'::jsonb),
+  occurred_at = COALESCE(occurred_at, created_at, NOW()),
+  created_at = COALESCE(created_at, NOW()),
+  chat_id = COALESCE(chat_id, sender_number, 'legacy-unknown')
+WHERE
+  external_id IS NULL
+  OR sender_number IS NULL
+  OR direction IS NULL
+  OR kind IS NULL
+  OR raw_payload IS NULL
+  OR occurred_at IS NULL
+  OR created_at IS NULL
+  OR chat_id IS NULL;
+
+ALTER TABLE messages
+  ALTER COLUMN external_id SET NOT NULL,
+  ALTER COLUMN sender_number SET NOT NULL,
+  ALTER COLUMN direction SET NOT NULL,
+  ALTER COLUMN kind SET NOT NULL,
+  ALTER COLUMN raw_payload SET NOT NULL,
+  ALTER COLUMN occurred_at SET NOT NULL,
+  ALTER COLUMN created_at SET NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS messages_external_id_key ON messages (external_id);
 
 ALTER TABLE messages
   ALTER COLUMN chat_id SET NOT NULL;
