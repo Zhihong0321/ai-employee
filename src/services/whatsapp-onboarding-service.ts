@@ -142,33 +142,33 @@ export class WhatsAppOnboardingService {
 
         if (update.connection === "close") {
           const statusCode = update.lastDisconnect?.error?.output?.statusCode;
-          if (statusCode === DisconnectReason.restartRequired) {
+          if (statusCode === DisconnectReason.loggedOut) {
+            const detail = "WhatsApp logged out. Delete auth files and restart onboarding if you want a fresh login.";
+
             this.setState({
-              status: "starting",
+              status: "closed",
               qrText: null,
-              detail: "Pairing accepted. Restarting Baileys session to complete login...",
+              detail,
               userId: this.socket?.user?.id ?? null,
               userName: this.socket?.user?.name ?? null
             });
-
-            void this.restart();
             return;
           }
 
           const detail =
-            statusCode === DisconnectReason.loggedOut
-              ? "WhatsApp logged out. Delete auth files and restart onboarding if you want a fresh login."
-              : statusCode
-                ? `Connection closed with status ${statusCode}.`
-                : "Connection closed.";
+            statusCode
+              ? `Connection closed with status ${statusCode}. Restarting onboarding session...`
+              : "Connection closed. Restarting onboarding session...";
 
           this.setState({
-            status: "closed",
+            status: "starting",
             qrText: null,
             detail,
             userId: this.socket?.user?.id ?? null,
             userName: this.socket?.user?.name ?? null
           });
+
+          void this.restart();
         }
       } catch (error) {
         this.setState({
