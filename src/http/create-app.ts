@@ -557,9 +557,7 @@ export function createApp(input: {
     <div class="wrap">
       <div class="header">
         <h1>WhatsApp Message Playground</h1>
-        <p>${input.config.whatsappMode === "agent"
-          ? "Tester-only live AI mode is active. Inbound tester messages can be planned and replied to automatically, and this page shows the thread plus its task/log context."
-          : "No AI involved. This page sends plain WhatsApp text messages and shows inbound/outbound messages stored in Postgres, linked to the contact book by WhatsApp number."}</p>
+        <p>Live AI mode is active. Inbound WhatsApp messages can be stored, planned, and replied to automatically, and this page shows the thread plus its task and log context.</p>
         <p><a href="/playground/agent-identity">Open Agent Identity settings</a> to change the AI teammate name, aliases, and role used during reasoning.</p>
         <p><a href="/playground/authority-policy">Open Authority Policy settings</a> to set the single source of truth for sensitive authority changes.</p>
       </div>
@@ -1115,7 +1113,6 @@ export function createApp(input: {
         appName: "AI Employee Dashboard",
         botName: identity?.name ?? null,
         whatsappEnabled: input.config.enableWhatsapp,
-        whatsappMode: input.config.whatsappMode,
         adminProtected: Boolean(input.config.adminApiToken),
         health
       })

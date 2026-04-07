@@ -19,7 +19,6 @@ export function renderDashboardPage(input: {
   appName: string;
   botName?: string | null;
   whatsappEnabled: boolean;
-  whatsappMode: string;
   adminProtected: boolean;
   health: HealthReport;
 }): string {
@@ -229,7 +228,7 @@ export function renderDashboardPage(input: {
         <p>Central dashboard for live Railway access, settings, local playground tools, and WhatsApp onboarding.</p>
         <div class="meta-row">
           <div class="pill"><strong>Agent:</strong> ${escapeHtml(safeBotName)}</div>
-          <div class="pill"><strong>WhatsApp:</strong> ${escapeHtml(input.whatsappEnabled ? input.whatsappMode : "disabled")}</div>
+          <div class="pill"><strong>WhatsApp:</strong> ${escapeHtml(input.whatsappEnabled ? "agent" : "disabled")}</div>
           <div class="pill"><strong>Admin:</strong> ${escapeHtml(input.adminProtected ? "token protected" : "not configured")}</div>
           <div class="pill"><strong>Health:</strong> ${escapeHtml(input.health.status)}</div>
           <div class="pill"><strong>LLM Router:</strong> ${escapeHtml(routerCheck?.ok ? "ok" : "check needed")}</div>

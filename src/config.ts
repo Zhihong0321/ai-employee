@@ -28,7 +28,6 @@ export type AppConfig = {
   botRoleDescription?: string;
   autonomyMode: "low-risk" | "wide";
   enableWhatsapp: boolean;
-  whatsappMode: "agent" | "playground";
   testerWhatsappNumbers: string[];
 };
 
@@ -108,7 +107,6 @@ export function loadConfig(): AppConfig {
     botRoleDescription: process.env.BOT_ROLE_DESCRIPTION?.trim() || undefined,
     autonomyMode: process.env.AUTONOMY_MODE === "wide" ? "wide" : "low-risk",
     enableWhatsapp: true,
-    whatsappMode: process.env.WHATSAPP_MODE === "agent" ? "agent" : "playground",
     testerWhatsappNumbers: parseWhatsappNumberList(process.env.TESTER_WHATSAPP_NUMBERS)
   };
 }

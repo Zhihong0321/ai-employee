@@ -86,7 +86,6 @@ function createConfig(): AppConfig {
     botName: "AI Employee",
     autonomyMode: "low-risk",
     enableWhatsapp: false,
-    whatsappMode: "playground",
     testerWhatsappNumbers: []
   };
 }

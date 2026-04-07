@@ -107,11 +107,11 @@ async function main(): Promise<void> {
     reactionClassifier,
     agentIdentityService,
     authorityPolicyService,
-    config.whatsappMode === "agent" ? testerWhatsAppAgentService : undefined
+    testerWhatsAppAgentService
   );
 
   const whatsappService = new WhatsAppService(config.whatsappAuthDir, mediaService, openAiService, whatsappIntakeService, {
-    enableMediaAi: config.whatsappMode === "agent",
+    enableMediaAi: true,
     captureOwnMessages: true,
     messageRecorder: whatsappPlaygroundService
   });
