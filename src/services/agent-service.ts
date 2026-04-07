@@ -16,7 +16,7 @@ import { AuthorityPolicyService } from "./authority-policy-service.js";
 import { applySensitiveAuthorityGuard } from "../lib/authority-guard.js";
 
 export type WhatsAppSender = {
-  sendText: (targetNumber: string, text: string) => Promise<void>;
+  sendText: (targetNumber: string, text: string) => Promise<InboundMessage | null>;
   getOwnNumber?: () => string | null;
 };
 

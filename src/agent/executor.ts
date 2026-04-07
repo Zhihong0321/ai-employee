@@ -5,7 +5,7 @@ import { AgentPolicyEngine } from "./policy-core.js";
 import { buildTaskCharter, buildTaskSnapshot } from "./task-core.js";
 
 export type AgentMessenger = {
-  sendText: (targetNumber: string, text: string) => Promise<void>;
+  sendText: (targetNumber: string, text: string) => Promise<unknown>;
 };
 
 export class AgentToolExecutor {

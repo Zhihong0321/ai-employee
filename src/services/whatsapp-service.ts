@@ -201,14 +201,15 @@ export class WhatsAppService {
     }
   }
 
-  async sendText(chatIdOrNumber: string, text: string): Promise<void> {
+  async sendText(chatIdOrNumber: string, text: string): Promise<InboundMessage | null> {
     if (!this.socket) {
       throw new Error("WhatsApp socket is not ready");
     }
 
     const jid = chatIdOrNumber.includes("@") ? chatIdOrNumber : `${normalizeChatNumber(chatIdOrNumber)}@s.whatsapp.net`;
     const content: AnyMessageContent = { text };
-    await this.socket.sendMessage(jid, content);
+    const sentMessage = await this.socket.sendMessage(jid, content);
+    return sentMessage ? this.normalizeMessage(sentMessage) : null;
   }
 
   private async normalizeMessage(message: any): Promise<InboundMessage> {
