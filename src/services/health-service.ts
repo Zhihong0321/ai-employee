@@ -22,7 +22,7 @@ export class HealthService {
       checks.push({
         name: "agent_db",
         ok: true,
-        detail: "Agent database reachable"
+        detail: `Agent database reachable (schema: ${this.config.databaseSchema})`
       });
     } catch (error) {
       checks.push({

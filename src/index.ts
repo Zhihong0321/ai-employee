@@ -31,7 +31,7 @@ import { SkillSelector } from "./skills/skill-selector.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const database = new Database(config.databaseUrl, config.companyReadDatabaseUrl);
+  const database = new Database(config.databaseUrl, config.companyReadDatabaseUrl, config.databaseSchema);
   await database.initialize();
 
   const repository = new Repository(database.agentPool);

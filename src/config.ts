@@ -5,6 +5,7 @@ import path from "node:path";
 export type AppConfig = {
   port: number;
   databaseUrl: string;
+  databaseSchema: string;
   companyReadDatabaseUrl?: string;
   openAiApiKey?: string;
   uniApiApiKey?: string;
@@ -76,6 +77,7 @@ export function loadConfig(): AppConfig {
   return {
     port: Number(process.env.PORT ?? 3000),
     databaseUrl: required("DATABASE_URL"),
+    databaseSchema: process.env.DATABASE_SCHEMA?.trim() || "ai_employee",
     companyReadDatabaseUrl: process.env.COMPANY_READ_DATABASE_URL || undefined,
     openAiApiKey: process.env.OPENAI_API_KEY || undefined,
     uniApiApiKey: process.env.UNIAPI_API_KEY || undefined,

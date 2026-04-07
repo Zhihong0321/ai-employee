@@ -33,7 +33,7 @@ async function main(): Promise<void> {
   installBrokenPipeGuard();
 
   const config = loadConfig();
-  const database = new Database(config.databaseUrl, config.companyReadDatabaseUrl);
+  const database = new Database(config.databaseUrl, config.companyReadDatabaseUrl, config.databaseSchema);
   const provider = config.llmRouterProvider;
   const model = config.llmRouterModel;
   await database.initialize();

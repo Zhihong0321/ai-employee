@@ -77,6 +77,7 @@ function createConfig(skillsDir: string): AppConfig {
   return {
     port: 3000,
     databaseUrl: "postgres://unused",
+    databaseSchema: "ai_employee",
     companyReadDatabaseUrl: undefined,
     openAiApiKey: undefined,
     uniApiApiKey: undefined,

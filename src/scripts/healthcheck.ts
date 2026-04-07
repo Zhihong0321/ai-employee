@@ -8,7 +8,7 @@ import { OpenAiService } from "../services/openai-service.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const database = new Database(config.databaseUrl, config.companyReadDatabaseUrl);
+  const database = new Database(config.databaseUrl, config.companyReadDatabaseUrl, config.databaseSchema);
 
   try {
     await database.initialize();
