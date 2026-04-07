@@ -3,7 +3,7 @@ import { AppConfig } from "../config.js";
 import { DebugService } from "../debug/debug-service.js";
 import { normalizePhoneNumber } from "../lib/phone.js";
 import { buildPromptTimeContext, isTimeSensitiveText } from "../lib/time-context.js";
-import { AgentPlan, InboundMessage } from "../types.js";
+import { AgentIdentity, AgentPlan, InboundMessage } from "../types.js";
 import { CompanyDbService } from "./company-db-service.js";
 import { OpenAiService } from "./openai-service.js";
 import { SkillSelector } from "../skills/skill-selector.js";
@@ -104,6 +104,27 @@ export class AgentService {
       });
 
       const normalizedText = normalizedTextFromMessage(message);
+      const identityReply = buildIdentityReply(normalizedText, agentIdentity);
+
+      if (identityReply) {
+        await this.debugService.log({
+          runId,
+          messageExternalId: message.externalId,
+          stage: "planning",
+          summary: "Answered with deterministic agent identity reply",
+          payload: {
+            normalizedText,
+            botName: agentIdentity.name || null
+          },
+          requiredMode: "debug_basic"
+        });
+
+        if (shouldRespond) {
+          await this.sendReply(message.chatId, identityReply, message.externalId, runId);
+        }
+
+        return;
+      }
 
       const plan = await this.openAiService.planMessage({
         senderProfile,
@@ -989,4 +1010,35 @@ function normalizedTextFromMessage(message: InboundMessage): string {
     .filter(Boolean)
     .join("\n\n")
     .trim();
+}
+
+function buildIdentityReply(normalizedText: string, identity: AgentIdentity): string | null {
+  const text = normalizedText.toLowerCase();
+  if (!text) {
+    return null;
+  }
+
+  const asksName =
+    text.includes("what is your name") ||
+    text.includes("what's your name") ||
+    text.includes("whats your name") ||
+    text.includes("your name") ||
+    text.includes("who are you");
+
+  if (!asksName) {
+    return null;
+  }
+
+  const name = identity.name.trim();
+  const role = identity.roleDescription.trim();
+
+  if (!name) {
+    return "I don't have a saved name yet.";
+  }
+
+  if (!role) {
+    return `My name is ${name}.`;
+  }
+
+  return `My name is ${name}. ${role}`;
 }
