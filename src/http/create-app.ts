@@ -40,6 +40,7 @@ export function createApp(input: {
   authorityPolicyService: AuthorityPolicyService;
   companyDbService: CompanyDbService;
   companyDbConfigService: CompanyDbConfigService;
+  activateWhatsAppSession?: () => Promise<void>;
   getOwnWhatsappNumber?: () => string | null;
   listWhatsAppGroups?: () => Promise<any[]>;
   getWhatsAppGroupMetadata?: (chatId: string) => Promise<any>;
@@ -313,6 +314,7 @@ export function createApp(input: {
         <p>If the main WhatsApp gateway is already running elsewhere, stop it first so this onboarding session can own the auth flow cleanly.</p>
         <button id="startButton">Start Onboarding</button>
         <button id="resetButton" style="margin-left:10px;background:#5f6d63;">Reset Session</button>
+        <button id="activateButton" style="margin-left:10px;background:#226f5d;">Use for AI Agent</button>
 
         <div style="height:16px"></div>
 
@@ -340,6 +342,7 @@ export function createApp(input: {
       const updatedValue = document.getElementById("updatedValue");
       const qrBox = document.getElementById("qrBox");
       const resetButton = document.getElementById("resetButton");
+      const activateButton = document.getElementById("activateButton");
 
       async function refreshStatus() {
         const response = await fetch("/api/playground/whatsapp/status");
@@ -385,6 +388,25 @@ export function createApp(input: {
           qrBox.textContent = error.message || "Failed to reset onboarding";
         } finally {
           resetButton.disabled = false;
+          await refreshStatus();
+        }
+      });
+
+      activateButton.addEventListener("click", async () => {
+        activateButton.disabled = true;
+        qrBox.textContent = "Promoting this account to the AI Agent...";
+        try {
+          const response = await fetch("/api/playground/whatsapp/activate", {
+            method: "POST"
+          });
+          const body = await response.json();
+          if (!response.ok) {
+            throw new Error(body.error || "Failed to activate WhatsApp session");
+          }
+        } catch (error) {
+          qrBox.textContent = error.message || "Failed to activate WhatsApp session";
+        } finally {
+          activateButton.disabled = false;
           await refreshStatus();
         }
       });
@@ -1366,6 +1388,27 @@ export function createApp(input: {
     } catch (error) {
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to reset WhatsApp onboarding"
+      });
+    }
+  });
+
+  app.post("/api/playground/whatsapp/activate", async (_req, res) => {
+    try {
+      if (!input.activateWhatsAppSession) {
+        res.status(409).json({
+          error: "WhatsApp activation is not available on this server."
+        });
+        return;
+      }
+
+      await input.activateWhatsAppSession();
+      res.json({
+        ok: true,
+        ownNumber: input.getOwnWhatsappNumber?.() ?? null
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to activate WhatsApp session"
       });
     }
   });
