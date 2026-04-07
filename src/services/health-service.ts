@@ -33,12 +33,8 @@ export class HealthService {
 
     checks.push({
       name: "whatsapp",
-      ok: this.config.enableWhatsapp ? Boolean(this.whatsappService?.isConnected()) : true,
-      detail: this.config.enableWhatsapp
-        ? this.whatsappService?.isConnected()
-          ? "WhatsApp socket connected"
-          : "WhatsApp enabled but not connected yet"
-        : "WhatsApp disabled by config"
+      ok: Boolean(this.whatsappService?.isConnected()),
+      detail: this.whatsappService?.isConnected() ? "WhatsApp socket connected" : "WhatsApp socket not connected yet"
     });
 
     return {

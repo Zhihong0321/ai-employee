@@ -1322,13 +1322,6 @@ export function createApp(input: {
 
   app.post("/api/playground/whatsapp/start", async (_req, res) => {
     try {
-      if (input.config.enableWhatsapp) {
-        res.status(409).json({
-          error: "ENABLE_WHATSAPP is true. Turn off the main WhatsApp gateway before using the onboarding page."
-        });
-        return;
-      }
-
       void input.whatsappOnboardingService.start();
       res.json({
         ok: true
@@ -1502,13 +1495,6 @@ export function createApp(input: {
 
   app.post("/api/playground/whatsapp/send", async (req, res) => {
     try {
-      if (!input.config.enableWhatsapp) {
-        res.status(409).json({
-          error: "ENABLE_WHATSAPP is false. Turn on the main WhatsApp gateway for live message testing."
-        });
-        return;
-      }
-
       const targetNumber = normalizePhoneNumber(req.body.targetNumber);
       const text = String(req.body.text ?? "").trim();
       if (!targetNumber || !text) {

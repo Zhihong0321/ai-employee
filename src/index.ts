@@ -110,23 +110,19 @@ async function main(): Promise<void> {
     config.whatsappMode === "agent" ? testerWhatsAppAgentService : undefined
   );
 
-  const whatsappService = config.enableWhatsapp
-    ? new WhatsAppService(config.whatsappAuthDir, mediaService, openAiService, whatsappIntakeService, {
-        enableMediaAi: config.whatsappMode === "agent",
-        captureOwnMessages: config.whatsappMode === "playground"
-      })
-    : undefined;
+  const whatsappService = new WhatsAppService(config.whatsappAuthDir, mediaService, openAiService, whatsappIntakeService, {
+    enableMediaAi: config.whatsappMode === "agent",
+    captureOwnMessages: config.whatsappMode === "playground"
+  });
 
-  if (whatsappService) {
-    const sender = {
-      sendText: (targetNumber: string, text: string) => whatsappService.sendText(targetNumber, text),
-      getOwnNumber: () => whatsappService.getOwnNumber()
-    };
-    agentService.setWhatsappSender(sender);
-    agentToolExecutor.setMessenger(sender);
-    whatsappPlaygroundService.setWhatsappSender(sender);
-    whatsappIntakeService.setOwnNumberResolver(() => sender.getOwnNumber?.() ?? null);
-  }
+  const sender = {
+    sendText: (targetNumber: string, text: string) => whatsappService.sendText(targetNumber, text),
+    getOwnNumber: () => whatsappService.getOwnNumber()
+  };
+  agentService.setWhatsappSender(sender);
+  agentToolExecutor.setMessenger(sender);
+  whatsappPlaygroundService.setWhatsappSender(sender);
+  whatsappIntakeService.setOwnNumberResolver(() => sender.getOwnNumber?.() ?? null);
 
   const schedulerService = new SchedulerService(repository, agentService, debugService, agentRunner);
   const healthService = new HealthService(config, database, openAiService, companyDbService, whatsappService);
@@ -150,8 +146,8 @@ async function main(): Promise<void> {
     companyDbService,
     companyDbConfigService,
     getOwnWhatsappNumber: () => whatsappService?.getOwnNumber() ?? null,
-    listWhatsAppGroups: whatsappService ? () => whatsappService.listParticipatingGroups() : undefined,
-    getWhatsAppGroupMetadata: whatsappService ? (chatId: string) => whatsappService.getGroupMetadata(chatId) : undefined
+    listWhatsAppGroups: () => whatsappService.listParticipatingGroups(),
+    getWhatsAppGroupMetadata: (chatId: string) => whatsappService.getGroupMetadata(chatId)
   });
 
   app.listen(config.port, () => {
@@ -160,11 +156,7 @@ async function main(): Promise<void> {
 
   schedulerService.start();
 
-  if (whatsappService) {
-    await whatsappService.start();
-  } else {
-    console.log("WhatsApp gateway disabled by config");
-  }
+  await whatsappService.start();
 }
 
 main().catch((error) => {

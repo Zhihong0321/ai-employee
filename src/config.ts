@@ -60,7 +60,7 @@ function parseWhatsappNumberList(value: string | undefined): string[] {
 }
 
 export function loadConfig(): AppConfig {
-  const enableWhatsapp = (process.env.ENABLE_WHATSAPP ?? "false").toLowerCase() !== "false";
+  const enableWhatsapp = true;
 
   return {
     port: Number(process.env.PORT ?? 3000),
