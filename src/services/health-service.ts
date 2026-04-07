@@ -2,12 +2,14 @@ import { AppConfig } from "../config.js";
 import { Database } from "../database/database.js";
 import { HealthReport } from "../types.js";
 import { OpenAiService } from "./openai-service.js";
+import { CompanyDbService } from "./company-db-service.js";
 
 export class HealthService {
   constructor(
     private readonly config: AppConfig,
     private readonly database: Database,
     private readonly openAiService: OpenAiService,
+    private readonly companyDbService: CompanyDbService,
     private readonly whatsappService?: { isConnected: () => boolean }
   ) {}
 
@@ -50,20 +52,12 @@ export class HealthService {
     const checks = [...report.checks];
 
     try {
-      if (this.database.companyPool) {
-        await this.database.companyPool.query("SELECT 1");
-        checks.push({
-          name: "company_db",
-          ok: true,
-          detail: "Company read database reachable"
-        });
-      } else {
-        checks.push({
-          name: "company_db",
-          ok: false,
-          detail: "COMPANY_READ_DATABASE_URL not configured"
-        });
-      }
+      await this.companyDbService.ping();
+      checks.push({
+        name: "company_db",
+        ok: true,
+        detail: "Company read database reachable"
+      });
     } catch (error) {
       checks.push({
         name: "company_db",

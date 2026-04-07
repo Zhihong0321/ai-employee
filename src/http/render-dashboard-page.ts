@@ -51,6 +51,12 @@ export function renderDashboardPage(input: {
       label: "Open Authority"
     },
     {
+      title: "Company DB",
+      description: "Configure and test the read-only company database connection from UI.",
+      href: "/playground/company-db",
+      label: "Open Company DB"
+    },
+    {
       title: "Agent Lab",
       description: "Run local reasoning tests and inspect planner output before touching live WhatsApp.",
       href: "/playground/agent-lab",

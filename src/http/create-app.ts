@@ -8,6 +8,7 @@ import { renderLlmConfigPage } from "./render-llm-config-page.js";
 import { renderAgentLabPage } from "./render-agent-lab-page.js";
 import { renderAgentIdentityPage } from "./render-agent-identity-page.js";
 import { renderAuthorityPolicyPage } from "./render-authority-policy-page.js";
+import { renderCompanyDbConfigPage } from "./render-company-db-config-page.js";
 import { renderDashboardPage } from "./render-dashboard-page.js";
 import { BootstrapService } from "../services/bootstrap-service.js";
 import { HealthService } from "../services/health-service.js";
@@ -20,6 +21,8 @@ import { AgentService } from "../services/agent-service.js";
 import { SkillRegistry } from "../skills/skill-registry.js";
 import { AgentIdentityService } from "../services/agent-identity-service.js";
 import { AuthorityPolicyService } from "../services/authority-policy-service.js";
+import { CompanyDbService } from "../services/company-db-service.js";
+import { CompanyDbConfigService } from "../services/company-db-config-service.js";
 
 export function createApp(input: {
   config: AppConfig;
@@ -35,6 +38,8 @@ export function createApp(input: {
   debugService: DebugService;
   agentIdentityService: AgentIdentityService;
   authorityPolicyService: AuthorityPolicyService;
+  companyDbService: CompanyDbService;
+  companyDbConfigService: CompanyDbConfigService;
   getOwnWhatsappNumber?: () => string | null;
   listWhatsAppGroups?: () => Promise<any[]>;
   getWhatsAppGroupMetadata?: (chatId: string) => Promise<any>;
@@ -867,6 +872,9 @@ export function createApp(input: {
   const authorityPolicyHtml = renderAuthorityPolicyPage({
     adminProtected: Boolean(input.config.adminApiToken)
   });
+  const companyDbConfigHtml = renderCompanyDbConfigPage({
+    adminProtected: Boolean(input.config.adminApiToken)
+  });
 
   const agentLabHtml = renderAgentLabPage({
     botName: input.config.botName,
@@ -1031,6 +1039,10 @@ export function createApp(input: {
     res.type("html").send(authorityPolicyHtml);
   });
 
+  app.get("/playground/company-db", (_req, res) => {
+    res.type("html").send(companyDbConfigHtml);
+  });
+
   app.get("/playground/whatsapp", (_req, res) => {
     res.type("html").send(whatsappMessagesHtml);
   });
@@ -1172,6 +1184,40 @@ export function createApp(input: {
   app.get("/api/playground/authority-policy", requireAdminIfConfigured, async (_req, res) => {
     const policy = await input.authorityPolicyService.getPolicy();
     res.json({ policy });
+  });
+
+  app.get("/api/playground/company-db", requireAdminIfConfigured, async (_req, res) => {
+    const [config, status] = await Promise.all([
+      input.companyDbConfigService.getConfig(),
+      input.companyDbConfigService.getStatus()
+    ]);
+    res.json({ config, status });
+  });
+
+  app.put("/api/playground/company-db", requireAdmin, async (req, res) => {
+    try {
+      const config = await input.companyDbConfigService.saveConfig({
+        connectionString: req.body.connectionString
+      });
+      const status = await input.companyDbConfigService.getStatus();
+      res.json({ ok: true, config, status });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to save company DB config"
+      });
+    }
+  });
+
+  app.post("/api/playground/company-db/test", requireAdmin, async (_req, res) => {
+    try {
+      await input.companyDbService.ping();
+      const status = await input.companyDbConfigService.getStatus();
+      res.json({ ok: true, status });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to test company DB connection"
+      });
+    }
   });
 
   app.put("/api/playground/authority-policy", requireAdmin, async (req, res) => {

@@ -7,6 +7,7 @@ import { LlmRouter } from "./llm/llm-router.js";
 import { AgentService } from "./services/agent-service.js";
 import { BootstrapService } from "./services/bootstrap-service.js";
 import { CompanyDbService } from "./services/company-db-service.js";
+import { CompanyDbConfigService } from "./services/company-db-config-service.js";
 import { HealthService } from "./services/health-service.js";
 import { MediaService } from "./services/media-service.js";
 import { OpenAiService } from "./services/openai-service.js";
@@ -65,7 +66,8 @@ async function main(): Promise<void> {
 
   const llmRouter = new LlmRouter(config, repository);
   const openAiService = new OpenAiService(config, llmRouter, promptRegistry);
-  const companyDbService = new CompanyDbService(database.companyPool);
+  const companyDbConfigService = new CompanyDbConfigService(config, repository);
+  const companyDbService = new CompanyDbService(companyDbConfigService);
   const skillSelector = new SkillSelector(skillRegistry);
   const memoryBrowserService = new MemoryBrowserService(repository);
   const agentIdentityService = new AgentIdentityService(config, repository);
@@ -127,7 +129,7 @@ async function main(): Promise<void> {
   }
 
   const schedulerService = new SchedulerService(repository, agentService, debugService, agentRunner);
-  const healthService = new HealthService(config, database, openAiService, whatsappService);
+  const healthService = new HealthService(config, database, openAiService, companyDbService, whatsappService);
   const whatsappOnboardingService = new WhatsAppOnboardingService(
     path.join(path.dirname(config.whatsappAuthDir), "baileys-onboarding-auth")
   );
@@ -145,6 +147,8 @@ async function main(): Promise<void> {
     debugService,
     agentIdentityService,
     authorityPolicyService,
+    companyDbService,
+    companyDbConfigService,
     getOwnWhatsappNumber: () => whatsappService?.getOwnNumber() ?? null,
     listWhatsAppGroups: whatsappService ? () => whatsappService.listParticipatingGroups() : undefined,
     getWhatsAppGroupMetadata: whatsappService ? (chatId: string) => whatsappService.getGroupMetadata(chatId) : undefined
