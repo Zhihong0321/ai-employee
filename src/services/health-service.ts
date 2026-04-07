@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import { AppConfig } from "../config.js";
 import { Database } from "../database/database.js";
 import { HealthReport } from "../types.js";
@@ -37,6 +38,9 @@ export class HealthService {
       detail: this.whatsappService?.isConnected() ? "WhatsApp socket connected" : "WhatsApp socket not connected yet"
     });
 
+    const storageCheck = await this.checkStoragePaths();
+    checks.push(storageCheck);
+
     return {
       status: checks.every((check) => check.ok) ? "ok" : "degraded",
       checks
@@ -69,5 +73,34 @@ export class HealthService {
       status: checks.every((check) => check.ok) ? "ok" : checks.some((check) => check.ok) ? "degraded" : "failed",
       checks
     };
+  }
+
+  private async checkStoragePaths(): Promise<HealthReport["checks"][number]> {
+    const paths = [this.config.whatsappAuthDir, this.config.mediaStorageDir];
+
+    try {
+      await Promise.all(
+        paths.map(async (dir) => {
+          await fs.mkdir(dir, { recursive: true });
+          await fs.access(dir);
+        })
+      );
+
+      const onPersistentMount = paths.every((dir) => dir.startsWith("/storage/") || dir === "/storage");
+
+      return {
+        name: "storage",
+        ok: true,
+        detail: onPersistentMount
+          ? `Persistent storage ready: ${paths.join(", ")}`
+          : `Storage ready: ${paths.join(", ")}`
+      };
+    } catch (error) {
+      return {
+        name: "storage",
+        ok: false,
+        detail: error instanceof Error ? error.message : "Storage paths are not accessible"
+      };
+    }
   }
 }
