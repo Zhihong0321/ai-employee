@@ -8,6 +8,7 @@ import { renderLlmConfigPage } from "./render-llm-config-page.js";
 import { renderAgentLabPage } from "./render-agent-lab-page.js";
 import { renderAgentIdentityPage } from "./render-agent-identity-page.js";
 import { renderAuthorityPolicyPage } from "./render-authority-policy-page.js";
+import { renderDashboardPage } from "./render-dashboard-page.js";
 import { BootstrapService } from "../services/bootstrap-service.js";
 import { HealthService } from "../services/health-service.js";
 import { WhatsAppOnboardingService } from "../services/whatsapp-onboarding-service.js";
@@ -974,6 +975,31 @@ export function createApp(input: {
     const numbers = await getEffectiveTesterWhatsappNumbers();
     return numbers[0] ?? null;
   };
+
+  app.get("/", async (_req, res) => {
+    const identity = await input.agentIdentityService.getIdentity().catch(() => null);
+    const health = await input.healthService.basic().catch(() => ({
+      status: "failed" as const,
+      checks: [
+        {
+          name: "startup",
+          ok: false,
+          detail: "Unable to load health report"
+        }
+      ]
+    }));
+
+    res.type("html").send(
+      renderDashboardPage({
+        appName: "AI Employee Dashboard",
+        botName: identity?.name ?? null,
+        whatsappEnabled: input.config.enableWhatsapp,
+        whatsappMode: input.config.whatsappMode,
+        adminProtected: Boolean(input.config.adminApiToken),
+        health
+      })
+    );
+  });
 
   app.get("/health", async (_req, res) => {
     const report = await input.healthService.basic();
