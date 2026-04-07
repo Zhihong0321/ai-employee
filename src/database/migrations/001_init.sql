@@ -42,6 +42,16 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS chat_id TEXT;
+
+UPDATE messages
+SET chat_id = COALESCE(chat_id, sender_number)
+WHERE chat_id IS NULL;
+
+ALTER TABLE messages
+  ALTER COLUMN chat_id SET NOT NULL;
+
 CREATE INDEX IF NOT EXISTS messages_chat_id_idx ON messages (chat_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS messages_sender_number_idx ON messages (sender_number, occurred_at DESC);
 
