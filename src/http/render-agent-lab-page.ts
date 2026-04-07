@@ -1,8 +1,9 @@
 export function renderAgentLabPage(input: {
-  botName: string;
+  botName?: string;
   provider: string;
   model: string;
 }): string {
+  const safeBotName = String(input.botName ?? "").trim() || "Not configured";
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -283,7 +284,7 @@ export function renderAgentLabPage(input: {
       <section class="hero">
         <h1>Agent Lab</h1>
         <p>Type an instruction, run the local agent path, and inspect what the AI decided to do before anything touches WhatsApp.</p>
-        <div class="meta">Bot name: ${escapeHtml(input.botName)} | Router: ${escapeHtml(input.provider)} / ${escapeHtml(input.model)}</div>
+        <div class="meta">Bot name: ${escapeHtml(safeBotName)} | Router: ${escapeHtml(input.provider)} / ${escapeHtml(input.model)}</div>
         <div class="top-links">
           <a href="/playground/gemini">Gemini Playground</a>
           <a href="/playground/llm/config">LLM Config</a>
@@ -704,7 +705,7 @@ export function renderAgentLabPage(input: {
           const direction = item.direction === "outbound" ? "outbound" : "inbound";
           const content = item.text_content || item.transcript || item.analysis || "(empty message)";
           return '<div class="chat-message ' + direction + '">' +
-            '<strong>' + escapeHtml(direction === "outbound" ? "${escapeHtml(input.botName)}" : (item.contact_name || senderNameInput.value || item.contact_number || "Local Operator")) + '</strong>' +
+            '<strong>' + escapeHtml(direction === "outbound" ? "${escapeHtml(safeBotName)}" : (item.contact_name || senderNameInput.value || item.contact_number || "Local Operator")) + '</strong>' +
             '<div class="meta">' + escapeHtml(formatDate(item.occurred_at)) + ' | ' + escapeHtml(item.kind || "text") + '</div>' +
             '<p>' + escapeHtml(content) + '</p>' +
           '</div>';
@@ -781,8 +782,8 @@ export function renderAgentLabPage(input: {
 </html>`;
 }
 
-function escapeHtml(value: string): string {
-  return value
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
