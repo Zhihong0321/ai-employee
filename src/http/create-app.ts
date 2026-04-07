@@ -42,6 +42,7 @@ export function createApp(input: {
   companyDbConfigService: CompanyDbConfigService;
   activateWhatsAppSession?: () => Promise<void>;
   getOwnWhatsappNumber?: () => string | null;
+  getWhatsAppRuntimeDiagnostics?: () => Record<string, unknown>;
   listWhatsAppGroups?: () => Promise<any[]>;
   getWhatsAppGroupMetadata?: (chatId: string) => Promise<any>;
 }) {
@@ -1518,6 +1519,12 @@ export function createApp(input: {
     ]);
 
     res.json({ contact, messages });
+  });
+
+  app.get("/api/playground/whatsapp/runtime-diagnostics", async (_req, res) => {
+    res.json({
+      diagnostics: input.getWhatsAppRuntimeDiagnostics?.() ?? null
+    });
   });
 
   app.get("/api/playground/whatsapp/thread-context", async (req, res) => {

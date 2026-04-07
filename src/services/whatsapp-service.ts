@@ -37,6 +37,28 @@ export class WhatsAppService {
   private connected = false;
   private restarting = false;
   private readonly recentExternalIds = new RecentExternalIdCache(WhatsAppService.RECENT_MESSAGE_TTL_MS);
+  private readonly runtimeDiagnostics = {
+    connected: false,
+    ownNumber: null as string | null,
+    authDir: "",
+    lastConnectionUpdateAt: null as string | null,
+    lastConnectionState: "idle",
+    lastConnectionDetail: "Not started",
+    lastSendAttemptAt: null as string | null,
+    lastSendTarget: null as string | null,
+    lastSendText: null as string | null,
+    lastSendExternalId: null as string | null,
+    lastMessagesUpsertAt: null as string | null,
+    lastMessagesUpsertCount: 0,
+    lastMessageExternalId: null as string | null,
+    lastMessageDirection: null as string | null,
+    lastMessageText: null as string | null,
+    lastRecorderResult: null as string | null,
+    lastAgentHandoffResult: null as string | null,
+    lastErrorAt: null as string | null,
+    lastErrorStage: null as string | null,
+    lastErrorMessage: null as string | null
+  };
 
   constructor(
     private readonly authDir: string,
@@ -52,6 +74,15 @@ export class WhatsAppService {
 
   isConnected(): boolean {
     return this.connected;
+  }
+
+  getRuntimeDiagnostics(): Record<string, unknown> {
+    return {
+      ...this.runtimeDiagnostics,
+      connected: this.connected,
+      ownNumber: this.getOwnNumber(),
+      authDir: this.authDir
+    };
   }
 
   async listParticipatingGroups(): Promise<any[]> {
@@ -111,6 +142,7 @@ export class WhatsAppService {
 
   async start(): Promise<void> {
     await fs.mkdir(this.authDir, { recursive: true });
+    this.runtimeDiagnostics.authDir = this.authDir;
     const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
     const { version } = await fetchLatestBaileysVersion();
 
@@ -122,25 +154,38 @@ export class WhatsAppService {
 
     this.socket.ev.on("creds.update", saveCreds);
     this.socket.ev.on("connection.update", (update: any) => {
+      this.runtimeDiagnostics.lastConnectionUpdateAt = new Date().toISOString();
       if (update.qr) {
         qrcode.generate(update.qr, { small: true });
+        this.runtimeDiagnostics.lastConnectionState = "qr";
+        this.runtimeDiagnostics.lastConnectionDetail = "QR generated";
       }
 
       if (update.connection === "open") {
         this.connected = true;
+        this.runtimeDiagnostics.connected = true;
+        this.runtimeDiagnostics.lastConnectionState = "open";
+        this.runtimeDiagnostics.lastConnectionDetail = "WhatsApp connected";
         console.log("WhatsApp connected");
       }
 
       if (update.connection === "close") {
         this.connected = false;
+        this.runtimeDiagnostics.connected = false;
+        this.runtimeDiagnostics.lastConnectionState = "close";
+        this.runtimeDiagnostics.lastConnectionDetail =
+          update.lastDisconnect?.error?.message ??
+          `Connection closed with status ${update.lastDisconnect?.error?.output?.statusCode ?? "unknown"}`;
         const shouldReconnect = update.lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      if (shouldReconnect) {
+        if (shouldReconnect) {
           void this.restart();
         }
       }
     });
 
     this.socket.ev.on("messages.upsert", async ({ messages }: any) => {
+      this.runtimeDiagnostics.lastMessagesUpsertAt = new Date().toISOString();
+      this.runtimeDiagnostics.lastMessagesUpsertCount = Array.isArray(messages) ? messages.length : 0;
       for (const message of messages) {
         if (!message.message) {
           continue;
@@ -148,6 +193,9 @@ export class WhatsAppService {
 
         try {
           const inbound = await this.normalizeMessage(message);
+          this.runtimeDiagnostics.lastMessageExternalId = inbound.externalId;
+          this.runtimeDiagnostics.lastMessageDirection = message.key?.fromMe ? "outbound" : "inbound";
+          this.runtimeDiagnostics.lastMessageText = inbound.text || null;
           const preflight = getIntakeGatewayPreflight(inbound, this.recentExternalIds);
 
           if (!preflight.isRecentDuplicate) {
@@ -161,20 +209,27 @@ export class WhatsAppService {
           if (message.key?.fromMe) {
             if (this.options?.messageRecorder?.handleOwnMessage) {
               await this.options.messageRecorder.handleOwnMessage(preparedInbound);
+              this.runtimeDiagnostics.lastRecorderResult = "own_message_saved";
             }
             if (this.options?.captureOwnMessages && this.agentService.handleOwnMessage) {
               await this.agentService.handleOwnMessage(preparedInbound);
+              this.runtimeDiagnostics.lastAgentHandoffResult = "own_message_handoff_ok";
             }
             continue;
           }
 
           if (this.options?.messageRecorder?.handleInboundMessage) {
             await this.options.messageRecorder.handleInboundMessage(preparedInbound);
+            this.runtimeDiagnostics.lastRecorderResult = "inbound_saved";
           }
           await this.agentService.handleInboundMessage(preparedInbound);
+          this.runtimeDiagnostics.lastAgentHandoffResult = "inbound_handoff_ok";
         } catch (error) {
           const externalId = this.resolveExternalId(message, this.resolveCanonicalChatJid(message));
           this.recentExternalIds.forget(externalId);
+          this.runtimeDiagnostics.lastErrorAt = new Date().toISOString();
+          this.runtimeDiagnostics.lastErrorStage = "messages.upsert";
+          this.runtimeDiagnostics.lastErrorMessage = error instanceof Error ? error.message : String(error);
           console.error("Failed to handle inbound WhatsApp message", error);
         }
       }
@@ -207,9 +262,14 @@ export class WhatsAppService {
     }
 
     const jid = chatIdOrNumber.includes("@") ? chatIdOrNumber : `${normalizeChatNumber(chatIdOrNumber)}@s.whatsapp.net`;
+    this.runtimeDiagnostics.lastSendAttemptAt = new Date().toISOString();
+    this.runtimeDiagnostics.lastSendTarget = jid;
+    this.runtimeDiagnostics.lastSendText = text;
     const content: AnyMessageContent = { text };
     const sentMessage = await this.socket.sendMessage(jid, content);
-    return sentMessage ? this.normalizeMessage(sentMessage) : null;
+    const normalized = sentMessage ? await this.normalizeMessage(sentMessage) : null;
+    this.runtimeDiagnostics.lastSendExternalId = normalized?.externalId ?? null;
+    return normalized;
   }
 
   private async normalizeMessage(message: any): Promise<InboundMessage> {

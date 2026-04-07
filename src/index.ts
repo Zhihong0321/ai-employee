@@ -150,6 +150,7 @@ async function main(): Promise<void> {
     companyDbConfigService,
     activateWhatsAppSession: () => whatsappService.restart(),
     getOwnWhatsappNumber: () => whatsappService?.getOwnNumber() ?? null,
+    getWhatsAppRuntimeDiagnostics: () => whatsappService.getRuntimeDiagnostics(),
     listWhatsAppGroups: () => whatsappService.listParticipatingGroups(),
     getWhatsAppGroupMetadata: (chatId: string) => whatsappService.getGroupMetadata(chatId)
   });
