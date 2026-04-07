@@ -1,0 +1,14 @@
+{
+  "promptKey": "agent-scheduled-wakeup",
+  "description": "Strict JSON planner for scheduled task wake-ups.",
+  "systemFiles": [
+    "system/core-role.md",
+    "shared/style-rules.md",
+    "shared/safety-rules.md",
+    "system/autonomy-policy.md",
+    "system/task-policy.md",
+    "system/outreach-policy.md",
+    "planners/agent-scheduled-wakeup.md"
+  ],
+  "schemaFile": "shared/output-contracts/agent-action-schema.json"
+}

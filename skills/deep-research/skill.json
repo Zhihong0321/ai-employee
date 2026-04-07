@@ -1,0 +1,26 @@
+{
+  "skillId": "deep-research",
+  "name": "Deep Research",
+  "description": "Guides the planner to turn research-style requests into grounded web-backed investigation using the default Gemini model.",
+  "tags": ["research", "investigate", "compare", "analyze", "sources", "web"],
+  "domains": ["research", "analysis", "web"],
+  "triggers": [
+    "deep research",
+    "research this",
+    "investigate this",
+    "compare",
+    "find sources",
+    "look into",
+    "do research",
+    "analyze competitors",
+    "market research"
+  ],
+  "allowedTools": [],
+  "priority": 4,
+  "always": false,
+  "requires": {
+    "bins": [],
+    "env": []
+  },
+  "status": "ready"
+}

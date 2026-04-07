@@ -1,0 +1,3 @@
+ALTER TABLE contacts
+ADD COLUMN IF NOT EXISTS timezone TEXT,
+ADD COLUMN IF NOT EXISTS timezone_source TEXT;

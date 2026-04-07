@@ -1,0 +1,6 @@
+{
+  "promptKey": "reaction-classifier",
+  "description": "Decides how the agent should react to an inbound message before planner execution.",
+  "systemFiles": ["system/reaction-classifier.md"],
+  "schemaFile": "shared/output-contracts/reaction-decision-schema.json"
+}

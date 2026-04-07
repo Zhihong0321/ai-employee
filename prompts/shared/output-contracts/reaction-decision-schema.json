@@ -1,0 +1,14 @@
+{
+  "addressedToAgent": "boolean",
+  "addressScope": "\"direct\" | \"group_wide\" | \"another_person\" | \"unclear\" | \"not_addressed\"",
+  "responseMode": "\"reply_now\" | \"silent_review\" | \"history_only\" | \"ignore\"",
+  "reactionType": "\"casual_chat\" | \"question\" | \"task_request\" | \"important_info\" | \"fact_update\" | \"instruction\" | \"clarification\" | \"unknown\"",
+  "shouldRecordMemory": "boolean",
+  "shouldCreateOrUpdateTask": "boolean",
+  "needsHumanClarification": "boolean",
+  "humanClarificationReason": "string|null",
+  "humanClarificationTarget": "\"sender\" | \"known_human\" | \"group\" | null",
+  "webSearchAllowed": "boolean",
+  "confidence": "number",
+  "reason": "string"
+}

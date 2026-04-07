@@ -1,0 +1,67 @@
+{
+  "category": "discussion | question | instruction | fact | task",
+  "summary": "string",
+  "replyText": "string",
+  "claims": [
+    {
+      "subject": "string",
+      "predicate": "string",
+      "value": "string",
+      "status": "candidate | working",
+      "confidence": 0.0
+    }
+  ],
+  "contactUpdates": [
+    {
+      "whatsappNumber": "string",
+      "whatsappLid": "string|null",
+      "name": "string",
+      "role": "string|null",
+      "branch": "string|null",
+      "authorityLevel": 0,
+      "domains": ["string"],
+      "isHumanApi": true,
+      "notes": "string|null",
+      "autonomousOutreach": true
+    }
+  ],
+  "facts": [
+    {
+      "factKey": "string",
+      "subject": "string",
+      "predicate": "string",
+      "value": "string",
+      "status": "working | confirmed",
+      "confidence": 0.0
+    }
+  ],
+  "tasks": [
+    {
+      "title": "string",
+      "details": "string",
+      "targetNumber": "string|null",
+      "dueAt": "ISO datetime|null"
+    }
+  ],
+  "reminders": [
+    {
+      "runAt": "ISO datetime",
+      "targetNumber": "string",
+      "message": "string"
+    }
+  ],
+  "outboundMessages": [
+    {
+      "targetNumber": "string",
+      "text": "string",
+      "risk": "low | sensitive"
+    }
+  ],
+  "clarification": {
+    "needed": true,
+    "targetNumber": "string|null",
+    "question": "string|null"
+  },
+  "companyQuery": "string|null",
+  "webSearchQuery": "string|null"
+}

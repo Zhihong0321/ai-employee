@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+data
+!.gitkeep
+.codex-*.log
+.codex-*.out.log
+.codex-*.err.log
+.codex-*.pid
+.local-server.log
+.agent-lab-response.html
+.minimax
+reference-material/fastclaw
+reference-material/gloamy
+reference-material/nanobot

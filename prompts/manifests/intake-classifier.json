@@ -1,0 +1,6 @@
+{
+  "promptKey": "intake-classifier",
+  "description": "Categorizes incoming messages into actionable intents or protocol noise.",
+  "systemFiles": ["system/intake-classifier.md"],
+  "schemaFile": "system/intake-classifier.schema.md"
+}

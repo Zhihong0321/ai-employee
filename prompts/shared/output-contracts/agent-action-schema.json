@@ -1,0 +1,31 @@
+{
+  "type": "object",
+  "properties": {
+    "thought": { "type": "string" },
+    "classification": { "type": "string" },
+    "goal": { "type": "string" },
+    "replyProposal": { "type": "string" },
+    "memoryUpdates": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "clarificationNeeded": { "type": "boolean" },
+    "riskLevel": { "type": "string", "enum": ["low", "medium", "high"] },
+    "taskStatus": {
+      "type": "string",
+      "enum": ["TODO", "IN_PROGRESS", "WAITING", "BLOCKED", "COMPLETED", "CANCELLED"]
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tool": { "type": "string" },
+          "args": { "type": "object" }
+        },
+        "required": ["tool", "args"]
+      }
+    }
+  },
+  "required": ["actions"]
+}

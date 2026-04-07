@@ -1,0 +1,15 @@
+{
+  "promptKey": "inbound-decision",
+  "description": "Structured planner for inbound WhatsApp events.",
+  "systemFiles": [
+    "system/core-role.md",
+    "shared/style-rules.md",
+    "shared/safety-rules.md",
+    "system/autonomy-policy.md",
+    "system/memory-policy.md",
+    "system/task-policy.md",
+    "system/outreach-policy.md",
+    "planners/inbound-decision.md"
+  ],
+  "schemaFile": "shared/output-contracts/agent-plan-schema.json"
+}

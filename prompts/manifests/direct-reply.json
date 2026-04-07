@@ -1,0 +1,10 @@
+{
+  "promptKey": "direct-reply",
+  "description": "Final WhatsApp reply writer.",
+  "systemFiles": [
+    "system/core-role.md",
+    "shared/style-rules.md",
+    "shared/safety-rules.md",
+    "responders/direct-reply.md"
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "name": "ai-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "dev:debug": "node --inspect=9229 --import tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "postbuild": "node scripts/copy-migrations.mjs",
+    "start": "node dist/index.js",
+    "healthcheck": "tsx src/scripts/healthcheck.ts",
+    "playground:gemini": "tsx src/scripts/gemini-playground.ts",
+    "whatsapp:onboard": "tsx src/scripts/baileys-onboarding.ts",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose stop postgres",
+    "db:logs": "docker compose logs -f postgres",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f app",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@google/genai": "^1.22.0",
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "openai": "^6.33.0",
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.20.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.12.0",
+    "@types/pdf-parse": "^1.1.5",
+    "@types/qrcode-terminal": "^0.12.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  }
+}

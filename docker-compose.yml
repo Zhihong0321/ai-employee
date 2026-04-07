@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ai_assistant
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_assistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/ai_assistant
+      COMPANY_READ_DATABASE_URL: postgres://company_reader:company_reader@postgres:5432/company_prod
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      UNIAPI_API_KEY: ${UNIAPI_API_KEY:-}
+      UNIAPI_GEMINI_BASE_URL: ${UNIAPI_GEMINI_BASE_URL:-https://api.uniapi.io/gemini}
+      UNIAPI_OPENAI_BASE_URL: ${UNIAPI_OPENAI_BASE_URL:-https://api.uniapi.io/v1}
+      LLM_ROUTER_PROVIDER: ${LLM_ROUTER_PROVIDER:-uniapi-gemini}
+      LLM_ROUTER_MODEL: ${LLM_ROUTER_MODEL:-gemini-3.1-flash-lite-preview}
+      OPENAI_REASONING_MODEL: ${OPENAI_REASONING_MODEL:-gpt-5.4-mini}
+      OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-5.4-mini}
+      OPENAI_TRANSCRIBE_MODEL: ${OPENAI_TRANSCRIBE_MODEL:-gpt-4o-transcribe}
+      HEALTHCHECK_MODEL: ${HEALTHCHECK_MODEL:-gemini-3.1-flash-lite-preview}
+      WHATSAPP_AUTH_DIR: /app/data/baileys-auth
+      MEDIA_STORAGE_DIR: /app/data/media
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-change-me}
+      BOOTSTRAP_WHATSAPP_NUMBER: ${BOOTSTRAP_WHATSAPP_NUMBER:-}
+      BOT_NAME: ${BOT_NAME:-AI Employee}
+      AUTONOMY_MODE: ${AUTONOMY_MODE:-low-risk}
+      ENABLE_WHATSAPP: ${ENABLE_WHATSAPP:-false}
+    ports:
+      - "3001:3000"
+    volumes:
+      - app_data:/app/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  postgres_data:
+  app_data:
