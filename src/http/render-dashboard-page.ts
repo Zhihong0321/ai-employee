@@ -24,6 +24,7 @@ export function renderDashboardPage(input: {
   health: HealthReport;
 }): string {
   const safeBotName = String(input.botName ?? "").trim() || "Not configured";
+  const healthPriority = ["llm_router", "gemini_web_search", "openai_capabilities", "agent_db", "company_db", "whatsapp"];
   const cards: DashboardCard[] = [
     {
       title: "WhatsApp Console",
@@ -63,7 +64,18 @@ export function renderDashboardPage(input: {
     }
   ];
 
-  const healthItems = input.health.checks
+  const orderedChecks = [...input.health.checks].sort((left, right) => {
+    const leftIndex = healthPriority.indexOf(left.name);
+    const rightIndex = healthPriority.indexOf(right.name);
+    const normalizedLeft = leftIndex === -1 ? healthPriority.length : leftIndex;
+    const normalizedRight = rightIndex === -1 ? healthPriority.length : rightIndex;
+    return normalizedLeft - normalizedRight;
+  });
+
+  const routerCheck = orderedChecks.find((check) => check.name === "llm_router");
+  const searchCheck = orderedChecks.find((check) => check.name === "gemini_web_search");
+
+  const healthItems = orderedChecks
     .map(
       (check) =>
         `<div class="health-item ${check.ok ? "ok" : "warn"}">
@@ -214,6 +226,8 @@ export function renderDashboardPage(input: {
           <div class="pill"><strong>WhatsApp:</strong> ${escapeHtml(input.whatsappEnabled ? input.whatsappMode : "disabled")}</div>
           <div class="pill"><strong>Admin:</strong> ${escapeHtml(input.adminProtected ? "token protected" : "not configured")}</div>
           <div class="pill"><strong>Health:</strong> ${escapeHtml(input.health.status)}</div>
+          <div class="pill"><strong>LLM Router:</strong> ${escapeHtml(routerCheck?.ok ? "ok" : "check needed")}</div>
+          <div class="pill"><strong>UniAPI Search:</strong> ${escapeHtml(searchCheck?.ok ? "ok" : "check needed")}</div>
         </div>
         <div class="links">
           <a href="/health">Basic Health</a>
@@ -227,7 +241,7 @@ export function renderDashboardPage(input: {
 
       <section class="health" style="margin-top: 20px;">
         <h2>Runtime Health</h2>
-        <p>Quick view of the current service checks without leaving the dashboard.</p>
+        <p>Full health view with LLM router and UniAPI-related checks prioritized first.</p>
         <div class="health-grid">${healthItems}</div>
       </section>
     </div>

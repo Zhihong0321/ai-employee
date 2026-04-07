@@ -978,7 +978,7 @@ export function createApp(input: {
 
   app.get("/", async (_req, res) => {
     const identity = await input.agentIdentityService.getIdentity().catch(() => null);
-    const health = await input.healthService.basic().catch(() => ({
+    const health = await input.healthService.full().catch(() => ({
       status: "failed" as const,
       checks: [
         {
