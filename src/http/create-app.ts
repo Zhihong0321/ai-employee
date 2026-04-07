@@ -633,6 +633,15 @@ export function createApp(input: {
           .replaceAll(">", "&gt;");
       }
 
+      function getRowId(row) {
+        if (!row || typeof row !== "object") {
+          return "unknown";
+        }
+
+        const value = row.id ?? row.task_id ?? row.message_id ?? row.external_id ?? row.run_id ?? null;
+        return value === null || value === undefined ? "unknown" : String(value);
+      }
+
       function renderContacts(contacts) {
         if (!contacts.length) {
           contactsEl.innerHTML = '<div class="panel-inner note">' +
@@ -677,12 +686,16 @@ export function createApp(input: {
         }
 
         messagesEl.innerHTML = messages.slice().reverse().map((message) => {
+          if (!message || typeof message !== "object") {
+            return '<div class="note">Skipped malformed message row.</div>';
+          }
+
           const klass = message.direction === "outbound" ? "message outbound" : "message inbound";
           const parts = [];
           if (message.text_content) parts.push(escapeHtml(message.text_content));
           if (message.transcript) parts.push('<div><strong>Transcript:</strong> ' + escapeHtml(message.transcript) + '</div>');
           if (message.analysis) parts.push('<div><strong>Analysis:</strong> ' + escapeHtml(message.analysis) + '</div>');
-          if (message.media_path) parts.push('<div><a href="/api/playground/whatsapp/messages/' + message.id + '/media" target="_blank">Open media</a></div>');
+          if (message.media_path) parts.push('<div><a href="/api/playground/whatsapp/messages/' + encodeURIComponent(getRowId(message)) + '/media" target="_blank">Open media</a></div>');
           const author = message.is_from_me ? "Bot" : (message.author_name || message.author_number || "Contact");
           return '<div class="' + klass + '">' +
             '<div class="meta">' + escapeHtml(author) + ' | ' + escapeHtml(message.kind) + ' | ' + escapeHtml(message.occurred_at) + '</div>' +
@@ -713,31 +726,37 @@ export function createApp(input: {
 
         tasksInspector.innerHTML = tasks.length
           ? tasks.map((task) =>
-              '<div class="message" style="max-width:100%;margin-bottom:10px;">' +
-                '<div class="meta">Task #' + escapeHtml(task.id) + ' | ' + escapeHtml(task.status) + ' | ' + escapeHtml(task.updated_at) + '</div>' +
-                '<div><strong>' + escapeHtml(task.title) + '</strong></div>' +
-                '<div style="margin-top:6px;">' + escapeHtml(task.details) + '</div>' +
-              '</div>'
+              !task || typeof task !== "object"
+                ? '<div class="note">Skipped malformed task row.</div>'
+                : '<div class="message" style="max-width:100%;margin-bottom:10px;">' +
+                  '<div class="meta">Task #' + escapeHtml(getRowId(task)) + ' | ' + escapeHtml(task.status) + ' | ' + escapeHtml(task.updated_at) + '</div>' +
+                  '<div><strong>' + escapeHtml(task.title) + '</strong></div>' +
+                  '<div style="margin-top:6px;">' + escapeHtml(task.details) + '</div>' +
+                '</div>'
             ).join("")
           : '<div class="note">No tasks linked to this contact yet.</div>';
 
         decisionLogsInspector.innerHTML = decisionLogs.length
           ? decisionLogs.map((item) =>
-              '<div class="message" style="max-width:100%;margin-bottom:10px;">' +
-                '<div class="meta">' + escapeHtml(item.decision_type) + ' | ' + escapeHtml(item.created_at) + '</div>' +
-                '<div><strong>' + escapeHtml(item.summary) + '</strong></div>' +
-                '<div style="margin-top:6px;"><pre style="min-height:auto;margin-top:6px;">' + escapeHtml(JSON.stringify(item.context || {}, null, 2)) + '</pre></div>' +
-              '</div>'
+              !item || typeof item !== "object"
+                ? '<div class="note">Skipped malformed decision log row.</div>'
+                : '<div class="message" style="max-width:100%;margin-bottom:10px;">' +
+                  '<div class="meta">' + escapeHtml(item.decision_type) + ' | ' + escapeHtml(item.created_at) + '</div>' +
+                  '<div><strong>' + escapeHtml(item.summary) + '</strong></div>' +
+                  '<div style="margin-top:6px;"><pre style="min-height:auto;margin-top:6px;">' + escapeHtml(JSON.stringify(item.context || {}, null, 2)) + '</pre></div>' +
+                '</div>'
             ).join("")
           : '<div class="note">No decision logs linked to this contact yet.</div>';
 
         debugInspector.innerHTML = debugRecords.length
           ? debugRecords.map((item) =>
-              '<div class="message" style="max-width:100%;margin-bottom:10px;">' +
-                '<div class="meta">' + escapeHtml(item.stage) + ' | ' + escapeHtml(item.severity) + ' | ' + escapeHtml(item.created_at) + '</div>' +
-                '<div><strong>' + escapeHtml(item.summary) + '</strong></div>' +
-                '<div style="margin-top:6px;"><pre style="min-height:auto;margin-top:6px;">' + escapeHtml(JSON.stringify(item.payload || {}, null, 2)) + '</pre></div>' +
-              '</div>'
+              !item || typeof item !== "object"
+                ? '<div class="note">Skipped malformed debug row.</div>'
+                : '<div class="message" style="max-width:100%;margin-bottom:10px;">' +
+                  '<div class="meta">' + escapeHtml(item.stage) + ' | ' + escapeHtml(item.severity) + ' | ' + escapeHtml(item.created_at) + '</div>' +
+                  '<div><strong>' + escapeHtml(item.summary) + '</strong></div>' +
+                  '<div style="margin-top:6px;"><pre style="min-height:auto;margin-top:6px;">' + escapeHtml(JSON.stringify(item.payload || {}, null, 2)) + '</pre></div>' +
+                '</div>'
             ).join("")
           : '<div class="note">No debug records linked to this contact yet.</div>';
       }
@@ -786,6 +805,15 @@ export function createApp(input: {
         renderInspector(body);
       }
 
+      async function refreshThreadData(label) {
+        try {
+          await Promise.all([loadContacts(), loadMessages(), loadInspector()]);
+        } catch (error) {
+          console.error("[whatsapp-playground]", label, error);
+          throw new Error(label + ": " + (error?.message || "Unknown thread refresh failure"));
+        }
+      }
+
       sendButton.addEventListener("click", async () => {
         if (!selectedContactNumber) {
           sendStatus.textContent = "Pick a contact first.";
@@ -817,9 +845,7 @@ export function createApp(input: {
 
           composer.value = "";
           sendStatus.textContent = "Sent and stored.";
-          await loadContacts();
-          await loadMessages();
-          await loadInspector();
+          await refreshThreadData("Send refresh");
         } catch (error) {
           sendStatus.textContent = error.message || "Send failed";
         } finally {
@@ -829,11 +855,13 @@ export function createApp(input: {
 
       refreshButton.addEventListener("click", async () => {
         sendStatus.textContent = "Refreshing...";
-        await loadTesterConfig();
-        await loadContacts();
-        await loadMessages();
-        await loadInspector();
-        sendStatus.textContent = "Refreshed.";
+        try {
+          await loadTesterConfig();
+          await refreshThreadData("Manual refresh");
+          sendStatus.textContent = "Refreshed.";
+        } catch (error) {
+          sendStatus.textContent = error.message || "Refresh failed";
+        }
       });
 
       openManualButton.addEventListener("click", async () => {
@@ -843,18 +871,16 @@ export function createApp(input: {
           return;
         }
         selectedContactNumber = value;
-        await loadContacts();
-        await loadMessages();
-        await loadInspector();
+        await refreshThreadData("Open thread");
       });
 
-      void loadTesterConfig().then(() => loadContacts()).then(() => loadMessages()).then(() => loadInspector());
+      void loadTesterConfig().then(() => refreshThreadData("Initial load"));
       setInterval(() => {
         void loadTesterConfig();
-        void loadContacts();
         if (selectedContactNumber) {
-          void loadMessages();
-          void loadInspector();
+          void refreshThreadData("Auto refresh").catch((error) => {
+            console.error("[whatsapp-playground] auto refresh failed", error);
+          });
         }
       }, 4000);
     </script>

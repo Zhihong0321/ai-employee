@@ -1,4 +1,5 @@
 import "dotenv/config";
+import fs from "node:fs";
 import path from "node:path";
 
 export type AppConfig = {
@@ -43,6 +44,18 @@ function resolvePath(value: string): string {
   return path.isAbsolute(value) ? value : path.resolve(process.cwd(), value);
 }
 
+function resolvePersistentPath(envValue: string | undefined, fallbackName: string): string {
+  if (envValue?.trim()) {
+    return resolvePath(envValue.trim());
+  }
+
+  if (fs.existsSync("/storage")) {
+    return resolvePath(path.join("/storage", fallbackName));
+  }
+
+  return resolvePath(path.join("./data", fallbackName));
+}
+
 function parseWhatsappNumberList(value: string | undefined): string[] {
   if (!value) {
     return [];
@@ -60,8 +73,6 @@ function parseWhatsappNumberList(value: string | undefined): string[] {
 }
 
 export function loadConfig(): AppConfig {
-  const enableWhatsapp = true;
-
   return {
     port: Number(process.env.PORT ?? 3000),
     databaseUrl: required("DATABASE_URL"),
@@ -81,8 +92,8 @@ export function loadConfig(): AppConfig {
     openAiVisionModel: process.env.OPENAI_VISION_MODEL ?? "gpt-5.4-mini",
     openAiTranscribeModel: process.env.OPENAI_TRANSCRIBE_MODEL ?? "gpt-4o-transcribe",
     healthcheckModel: process.env.HEALTHCHECK_MODEL ?? "gpt-5.4-mini",
-    whatsappAuthDir: resolvePath(process.env.WHATSAPP_AUTH_DIR ?? "./data/baileys-auth"),
-    mediaStorageDir: resolvePath(process.env.MEDIA_STORAGE_DIR ?? "./data/media"),
+    whatsappAuthDir: resolvePersistentPath(process.env.WHATSAPP_AUTH_DIR, "baileys-auth"),
+    mediaStorageDir: resolvePersistentPath(process.env.MEDIA_STORAGE_DIR, "media"),
     promptsDir: resolvePath(process.env.PROMPTS_DIR ?? "./prompts"),
     skillsDir: resolvePath(process.env.SKILLS_DIR ?? "./skills"),
     adminApiToken: process.env.ADMIN_API_TOKEN || undefined,
@@ -94,7 +105,7 @@ export function loadConfig(): AppConfig {
       .filter(Boolean),
     botRoleDescription: process.env.BOT_ROLE_DESCRIPTION?.trim() || undefined,
     autonomyMode: process.env.AUTONOMY_MODE === "wide" ? "wide" : "low-risk",
-    enableWhatsapp,
+    enableWhatsapp: true,
     whatsappMode: process.env.WHATSAPP_MODE === "agent" ? "agent" : "playground",
     testerWhatsappNumbers: parseWhatsappNumberList(process.env.TESTER_WHATSAPP_NUMBERS)
   };
