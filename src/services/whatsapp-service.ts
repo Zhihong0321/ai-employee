@@ -330,8 +330,16 @@ export class WhatsAppService {
       analysis = await this.openAiService.analyzeImage(filePath, inbound.mimeType || "image/jpeg");
     }
 
-    if (inbound.kind === "document" && inbound.mimeType === "application/pdf") {
-      analysis = await this.mediaService.extractPdfText(filePath);
+    if (inbound.kind === "document") {
+      const readableText = await this.mediaService.extractReadableText(filePath, inbound.mimeType);
+
+      if (this.options?.enableMediaAi) {
+        analysis = await this.openAiService.analyzeDocument(filePath, inbound.mimeType, readableText);
+      }
+
+      if (!analysis && readableText) {
+        analysis = readableText;
+      }
     }
 
     return {
@@ -419,6 +427,30 @@ export class WhatsAppService {
     }
     if (normalized.includes("jpeg") || normalized.includes("jpg")) {
       return "jpg";
+    }
+    if (normalized.includes("plain")) {
+      return "txt";
+    }
+    if (normalized.includes("markdown")) {
+      return "md";
+    }
+    if (normalized.includes("csv")) {
+      return "csv";
+    }
+    if (normalized.includes("json")) {
+      return "json";
+    }
+    if (normalized.includes("xml")) {
+      return "xml";
+    }
+    if (normalized.includes("html")) {
+      return "html";
+    }
+    if (normalized.includes("wordprocessingml.document")) {
+      return "docx";
+    }
+    if (normalized.includes("msword")) {
+      return "doc";
     }
     if (normalized.includes("pdf")) {
       return "pdf";

@@ -4,7 +4,7 @@ Single-server WhatsApp AI employee built around:
 
 - Baileys for WhatsApp messaging
 - internal LLM router with swappable providers
-- OpenAI for reasoning, vision, transcription, and web search
+- Gemini for reasoning and multimodal attachment analysis, with OpenAI for transcription and web search
 - Postgres for raw chat logs, memory, contacts, tasks, and scheduled jobs
 
 ## What this MVP does
@@ -12,7 +12,7 @@ Single-server WhatsApp AI employee built around:
 - Connect to a dedicated WhatsApp account with Baileys
 - Store every inbound and outbound message in Postgres
 - Transcribe voice notes with `gpt-4o-transcribe`
-- Analyze images with `gpt-5.4-mini`
+- Analyze images and readable documents with the Gemini multimodal path
 - Use OpenAI web search when needed
 - Route core reasoning calls through an internal provider router
 - Support UniAPI Gemini as the default reasoning provider
@@ -240,5 +240,5 @@ Also supported:
 OpenAI is still used for:
 
 - audio transcription
-- image understanding
+- fallback image understanding when Gemini is unavailable
 - web-search tool access

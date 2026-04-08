@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import OpenAI from "openai";
-import { GoogleGenAI } from "@google/genai/node";
+import { GoogleGenAI, createPartFromBase64, createPartFromText, createUserContent } from "@google/genai/node";
 import { AppConfig } from "../config.js";
 import { LlmRouter } from "../llm/llm-router.js";
 import { safeJsonParse } from "../lib/json.js";
@@ -35,6 +35,48 @@ Uncertainty and clarification policy:
 - Use webSearchQuery only for public, external information. Do not use web search for internal team context, private group context, or person identification inside WhatsApp chats.
 - When confidence is low and the correct source is human knowledge, ask for clarification before creating facts, reminders, or task actions that depend on the unknown detail.
 `.trim();
+
+const MEDIA_ANALYSIS_SYSTEM_PROMPT = `
+You analyze WhatsApp attachments for operational context.
+Be concise, factual, and useful.
+Extract visible text, named entities, dates, amounts, file type clues, and action items.
+If the attachment appears to be noise or only partially readable, say that directly.
+`.trim();
+
+function truncateForPrompt(text: string, maxCharacters = 32000): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxCharacters) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, maxCharacters)}\n\n[truncated ${trimmed.length - maxCharacters} characters]`;
+}
+
+function buildAttachmentPrompt(input: {
+  kind: "image" | "document";
+  mimeType: string;
+  filePath: string;
+  extractedText?: string | null;
+}): string {
+  const fileName = input.filePath.split(/[\\/]/).pop() || "attachment";
+  const textBlock = input.extractedText?.trim()
+    ? `\n\nExtracted text:\n\`\`\`text\n${truncateForPrompt(input.extractedText, 24000)}\n\`\`\``
+    : "";
+
+  return [
+    MEDIA_ANALYSIS_SYSTEM_PROMPT,
+    "",
+    `Attachment kind: ${input.kind}`,
+    `File name: ${fileName}`,
+    `MIME type: ${input.mimeType}`,
+    "",
+    "Return 3-8 short sentences.",
+    "Focus on what a human operator should know or do next.",
+    textBlock
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 
 const AUTHORITY_POLICY = `
 Authority and organizational truth policy:
@@ -88,6 +130,24 @@ export class OpenAiService {
   }
 
   async analyzeImage(filePath: string, mimeType: string): Promise<string> {
+    const normalizedMimeType = mimeType.trim() || "image/jpeg";
+
+    if (this.geminiClient) {
+      try {
+        return await this.analyzeWithGeminiFile({
+          filePath,
+          kind: "image",
+          mimeType: normalizedMimeType
+        });
+      } catch (error) {
+        console.warn("Gemini image analysis failed, falling back to OpenAI vision", {
+          filePath,
+          mimeType: normalizedMimeType,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
     if (!this.client) {
       return "";
     }
@@ -113,6 +173,58 @@ export class OpenAiService {
     } as any);
 
     return response.output_text ?? "";
+  }
+
+  async analyzeDocument(
+    filePath: string,
+    mimeType: string | null,
+    extractedText: string | null = null
+  ): Promise<string> {
+    const normalizedMimeType = mimeType?.trim() || "application/octet-stream";
+    const readableText = extractedText?.trim() ?? "";
+
+    if (this.geminiClient && normalizedMimeType === "application/pdf") {
+      try {
+        return await this.analyzeWithGeminiFile({
+          filePath,
+          kind: "document",
+          mimeType: normalizedMimeType
+        });
+      } catch (error) {
+        console.warn("Gemini PDF analysis failed, falling back to extracted text", {
+          filePath,
+          mimeType: normalizedMimeType,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    if (readableText) {
+      return this.summarizeReadableText({
+        filePath,
+        mimeType: normalizedMimeType,
+        kind: "document",
+        extractedText: readableText
+      });
+    }
+
+    if (this.geminiClient) {
+      try {
+        return await this.analyzeWithGeminiFile({
+          filePath,
+          kind: "document",
+          mimeType: normalizedMimeType
+        });
+      } catch (error) {
+        console.warn("Gemini document analysis failed", {
+          filePath,
+          mimeType: normalizedMimeType,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    return "";
   }
 
   async webSearch(query: string): Promise<{ answer: string; sources: unknown[] }> {
@@ -311,6 +423,58 @@ ${AGENT_ABILITY_BOUNDARY_POLICY}`),
       status: checks.every((check) => check.ok) ? "ok" : checks.some((check) => check.ok) ? "degraded" : "failed",
       checks
     };
+  }
+
+  private async analyzeWithGeminiFile(input: {
+    filePath: string;
+    kind: "image" | "document";
+    mimeType: string;
+    extractedText?: string | null;
+  }): Promise<string> {
+    if (!this.geminiClient) {
+      return "";
+    }
+
+    const prompt = buildAttachmentPrompt({
+      kind: input.kind,
+      mimeType: input.mimeType,
+      filePath: input.filePath,
+      extractedText: input.extractedText ?? null
+    });
+    const base64 = fs.readFileSync(input.filePath).toString("base64");
+    const result = await this.geminiClient.models.generateContent({
+      model: this.config.llmRouterModel,
+      contents: createUserContent([
+        createPartFromText(prompt),
+        createPartFromBase64(base64, input.mimeType)
+      ]),
+      config: {
+        temperature: 0.2
+      } as any
+    } as any);
+
+    return result.text?.trim() ?? "";
+  }
+
+  private async summarizeReadableText(input: {
+    filePath: string;
+    mimeType: string;
+    kind: "document";
+    extractedText: string;
+  }): Promise<string> {
+    if (!this.llmRouter.isConfigured()) {
+      return truncateForPrompt(input.extractedText, 12000);
+    }
+
+    return (
+      (await this.llmRouter.generateText({
+        provider: this.config.llmRouterProvider,
+        model: this.config.llmRouterModel,
+        systemPrompt: MEDIA_ANALYSIS_SYSTEM_PROMPT,
+        prompt: buildAttachmentPrompt(input),
+        temperature: 0.2
+      })) || truncateForPrompt(input.extractedText, 12000)
+    );
   }
 
   private extractGeminiSources(result: any): unknown[] {
