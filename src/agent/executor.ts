@@ -3,6 +3,7 @@ import { DebugService } from "../debug/debug-service.js";
 import { normalizePhoneNumber } from "../lib/phone.js";
 import { AgentPolicyEngine } from "./policy-core.js";
 import { buildTaskCharter, buildTaskSnapshot } from "./task-core.js";
+import { PostgresMcpServer } from "../services/postgres-mcp-server.js";
 
 export type AgentMessenger = {
   sendText: (targetNumber: string, text: string) => Promise<unknown>;
@@ -14,7 +15,8 @@ export class AgentToolExecutor {
   constructor(
     private readonly repository: Repository,
     private readonly debugService: DebugService,
-    private readonly policyEngine: AgentPolicyEngine
+    private readonly policyEngine: AgentPolicyEngine,
+    private readonly postgresMcp?: PostgresMcpServer
   ) {}
 
   setMessenger(messenger: AgentMessenger): void {
@@ -89,6 +91,8 @@ export class AgentToolExecutor {
           return await this.createTask(normalizedArgs, contextTaskId);
         case "schedule_wakeup":
           return await this.scheduleWakeup(normalizedArgs);
+        case "query_database":
+          return await this.executeQueryDatabase(normalizedArgs, contextTaskId, runId);
         default:
           return `Error: Unknown tool ${toolName}`;
       }
@@ -241,5 +245,31 @@ export class AgentToolExecutor {
     });
 
     return `Wakeup scheduled for task ${task_id} at ${run_at} UTC.`;
+  }
+
+  private async executeQueryDatabase(
+    args: Record<string, any>,
+    contextTaskId?: number,
+    runId?: string
+  ): Promise<string> {
+    if (!this.postgresMcp) {
+      return "Error: query_database tool is not available (PostgresMcpServer not configured).";
+    }
+
+    const sql = String(args.sql ?? "").trim();
+    const params = Array.isArray(args.params) ? args.params : [];
+
+    await this.debugService.log({
+      runId,
+      taskId: contextTaskId ?? null,
+      stage: "tool_call",
+      toolName: "query_database",
+      summary: "Executing MCP database query",
+      payload: { sql, paramCount: params.length },
+      requiredMode: "debug_basic"
+    });
+
+    const result = await this.postgresMcp.query(sql, params);
+    return PostgresMcpServer.formatResult(result);
   }
 }

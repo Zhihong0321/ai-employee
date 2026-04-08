@@ -49,7 +49,12 @@ export class OpenAiProvider implements LlmProvider {
 
     const response = await this.client.responses.create({
       model: input.model ?? this.config.openAiReasoningModel,
-      instructions: [input.systemPrompt, "Return valid JSON only.", input.schemaDescription].filter(Boolean).join("\n\n"),
+      instructions: [
+        input.systemPrompt,
+        input.referenceContext ? `Reference context:\n${input.referenceContext}` : "",
+        "Return valid JSON only.",
+        input.schemaDescription ? `JSON shape:\n${input.schemaDescription}` : ""
+      ].filter(Boolean).join("\n\n"),
       input: input.prompt,
       temperature: input.temperature ?? 0.1
     } as any);

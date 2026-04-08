@@ -37,7 +37,7 @@ Create `.env` from the example:
 Copy-Item .env.example .env
 ```
 
-The example is already wired for local Docker Postgres and starts with `ENABLE_WHATSAPP=false` so the app can boot without forcing a QR login during setup.
+The example is already wired for local Docker Postgres and is meant to boot directly into the same runtime shape you will actually test.
 
 Add keys when you are ready:
 
@@ -112,14 +112,13 @@ That builds the production image and runs the app against the Docker Postgres se
 npm run docker:down
 ```
 
-### 8. Enable WhatsApp when ready
+### 8. Connect WhatsApp
 
 Once DB and HTTP health look good:
 
-1. set `ENABLE_WHATSAPP=true` in `.env`
-2. add your provider keys
-3. restart `npm run dev`
-4. scan the QR in the terminal on first login
+1. add your provider keys
+2. restart `npm run dev`
+3. scan the QR in the terminal on first login
 
 Auth files and downloaded media stay under `./data`, which is gitignored.
 
@@ -163,7 +162,7 @@ What it does:
 - stores credentials locally in `WHATSAPP_AUTH_DIR`
 - prints the connected account id once login succeeds
 
-After that, you can stop the script and start the main app with `ENABLE_WHATSAPP=true`.
+After that, you can stop the script and start the main app normally.
 
 ## Main endpoints
 

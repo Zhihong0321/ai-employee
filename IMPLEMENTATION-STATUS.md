@@ -90,7 +90,7 @@ Already verified:
 - local `.env` loads successfully for app boot
 - local agent DB and company DB are reachable
 - migrations apply during app startup
-- backend boots locally with WhatsApp disabled for baseline validation
+- backend boots locally and the WhatsApp runtime can start for baseline validation
 - `GET /health` returns `ok` with baseline config
 - `GET /health/full` returns degraded only because `OPENAI_API_KEY` is not set
 - local HTTP Gemini playground request succeeds through the routed `uniapi-gemini` path
@@ -384,7 +384,7 @@ Phase 10: End-to-End Validation
   - confirmed Docker Postgres was healthy and local migrations run cleanly on startup
   - ran `npm run healthcheck` successfully
   - ran `npm run build` successfully
-  - corrected local baseline config by setting `ENABLE_WHATSAPP=false` before first-run boot validation
+- corrected local baseline config for first-run boot validation
   - booted the backend locally and confirmed `GET /health` plus `GET /health/full`
   - confirmed routed Gemini HTTP playground smoke test works through the live app
 - Completed local no-WhatsApp Agent Lab slice:

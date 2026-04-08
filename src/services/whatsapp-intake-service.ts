@@ -79,7 +79,7 @@ export class WhatsAppIntakeService {
         runId,
         messageExternalId: message.externalId,
         stage: "classification",
-        summary: "Inbound message already recorded, continuing AI handling",
+        summary: "Inbound message already recorded, skipping AI handling",
         payload: {
           disposition: "duplicate_record_only",
           senderNumber: contactNumber
@@ -88,12 +88,13 @@ export class WhatsAppIntakeService {
       });
       await this.repository.addDecisionLog(
         message.externalId,
-        "message_intake_duplicate_record",
-        "Inbound message was already recorded before intake; continuing AI handling",
+        "message_intake_skip",
+        "Inbound message was already recorded before intake; skipping AI handling",
         {
           disposition: "duplicate_record_only"
         }
       );
+      return;
     } else {
       await this.captureKnowledgeAsset(message, contactNumber);
     }

@@ -85,9 +85,12 @@ function createConfig(): AppConfig {
     bootstrapWhatsappNumber: undefined,
     botName: "AI Employee",
     autonomyMode: "low-risk",
-    enableWhatsapp: false,
-    testerWhatsappNumbers: []
+    testerWhatsappNumbers: [],
+    sdmoTokenThreshold: 15000,
+    sdmoOptimizerCooldownMinutes: 30,
+    sdmoContextBudgetTokens: 20000
   };
+
 }
 
 test("prompt registry reloads manifests and activates first versions", async () => {
@@ -102,6 +105,10 @@ test("prompt registry reloads manifests and activates first versions", async () 
   assert.ok(inboundDecision.systemPrompt.includes("WhatsApp-based AI employee"));
   assert.ok(inboundDecision.schemaDescription?.includes("\"category\""));
   assert.ok(inboundDecision.versionHash.length > 10);
+
+  const agentInboundDecision = await registry.getActivePromptPack("agent-inbound-decision");
+  assert.equal(agentInboundDecision.promptKey, "agent-inbound-decision");
+  assert.ok(agentInboundDecision.referenceContext?.includes("Agent Memory Map"));
 });
 
 test("prompt registry rejects duplicate prompt keys across manifests", async () => {

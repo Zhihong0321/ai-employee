@@ -49,6 +49,30 @@ function parseMemoryIndexRow(row: any): MemoryIndexEntry {
   };
 }
 
+function parseTaskOptimizationCount(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function parseTaskRow(row: any): any {
+  if (!row) {
+    return row;
+  }
+
+  const metadata = row.metadata ?? {};
+  const fallbackLastOptimizedAt =
+    row.last_optimized_at ??
+    (typeof metadata?.last_optimized_at === "string" ? metadata.last_optimized_at : null);
+  const fallbackOptimizationCount =
+    row.sdmo_optimization_count ?? parseTaskOptimizationCount(metadata?.sdmo_optimization_count);
+
+  return {
+    ...row,
+    last_optimized_at: fallbackLastOptimizedAt,
+    sdmo_optimization_count: parseTaskOptimizationCount(fallbackOptimizationCount)
+  };
+}
+
 function resolveContactTimezone(input: {
   whatsappNumber: string;
   timezone?: string | null;
@@ -70,7 +94,7 @@ function resolveContactTimezone(input: {
 }
 
 export class Repository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Pool) { }
 
   private async getContactByNumberWithClient(client: Pool | PoolClient, whatsappNumber: string): Promise<any | null> {
     const result = await client.query("SELECT * FROM contacts WHERE whatsapp_number = $1", [whatsappNumber]);
@@ -130,8 +154,8 @@ export class Repository {
     return {
       mode:
         stored?.mode === "debug_basic" ||
-        stored?.mode === "debug_verbose" ||
-        stored?.mode === "debug_trace"
+          stored?.mode === "debug_verbose" ||
+          stored?.mode === "debug_trace"
           ? stored.mode
           : "debug_off",
       promptTrace: Boolean(stored?.promptTrace),
@@ -310,21 +334,21 @@ export class Repository {
   async listPromptVersions(promptKey?: string): Promise<any[]> {
     const result = promptKey
       ? await this.pool.query(
-          `
+        `
           SELECT *
           FROM prompt_hub_versions
           WHERE prompt_key = $1
           ORDER BY version DESC
           `,
-          [promptKey]
-        )
+        [promptKey]
+      )
       : await this.pool.query(
-          `
+        `
           SELECT *
           FROM prompt_hub_versions
           ORDER BY prompt_key ASC, version DESC
           `
-        );
+      );
 
     return result.rows;
   }
@@ -420,23 +444,23 @@ export class Repository {
 
       const targetResult = input.versionHash
         ? await client.query(
-            `
+          `
             SELECT *
             FROM prompt_hub_versions
             WHERE prompt_key = $1 AND version_hash = $2
             LIMIT 1
             `,
-            [input.promptKey, input.versionHash]
-          )
+          [input.promptKey, input.versionHash]
+        )
         : await client.query(
-            `
+          `
             SELECT *
             FROM prompt_hub_versions
             WHERE prompt_key = $1 AND version = $2
             LIMIT 1
             `,
-            [input.promptKey, input.version ?? 0]
-          );
+          [input.promptKey, input.version ?? 0]
+        );
 
       if (!targetResult.rowCount) {
         await client.query("ROLLBACK");
@@ -476,21 +500,21 @@ export class Repository {
   async listSkillVersions(skillId?: string): Promise<any[]> {
     const result = skillId
       ? await this.pool.query(
-          `
+        `
           SELECT *
           FROM skill_hub_versions
           WHERE skill_id = $1
           ORDER BY version DESC
           `,
-          [skillId]
-        )
+        [skillId]
+      )
       : await this.pool.query(
-          `
+        `
           SELECT *
           FROM skill_hub_versions
           ORDER BY skill_id ASC, version DESC
           `
-        );
+      );
 
     return result.rows;
   }
@@ -599,23 +623,23 @@ export class Repository {
 
       const targetResult = input.versionHash
         ? await client.query(
-            `
+          `
             SELECT *
             FROM skill_hub_versions
             WHERE skill_id = $1 AND version_hash = $2
             LIMIT 1
             `,
-            [input.skillId, input.versionHash]
-          )
+          [input.skillId, input.versionHash]
+        )
         : await client.query(
-            `
+          `
             SELECT *
             FROM skill_hub_versions
             WHERE skill_id = $1 AND version = $2
             LIMIT 1
             `,
-            [input.skillId, input.version ?? 0]
-          );
+          [input.skillId, input.version ?? 0]
+        );
 
       if (!targetResult.rowCount) {
         await client.query("ROLLBACK");
@@ -653,8 +677,8 @@ export class Repository {
   }
 
   async saveStoredMessage(input: StoredMessageInput): Promise<boolean> {
-      const result = await this.pool.query(
-        `
+    const result = await this.pool.query(
+      `
         INSERT INTO messages (
           external_id, chat_id, sender_number, sender_name, direction, kind,
           text_content, transcript, analysis, media_path, mime_type, raw_payload, occurred_at,
@@ -667,27 +691,27 @@ export class Repository {
         ON CONFLICT (external_id) DO NOTHING
         RETURNING id
         `,
-        [
-          input.externalId,
-          input.chatId,
-          input.senderNumber,
-          input.senderName ?? null,
-          input.direction,
-          input.kind,
-          input.text,
-          input.transcript ?? null,
-          input.analysis ?? null,
-          input.mediaPath ?? null,
-          input.mimeType ?? null,
-          JSON.stringify(input.rawPayload ?? {}),
-          input.occurredAt,
-          input.contactId ?? null,
-          input.contactNumber ?? input.senderNumber,
-          input.authorNumber ?? null,
-          input.authorName ?? null,
-          input.isFromMe ?? input.direction === "outbound"
-        ]
-      );
+      [
+        input.externalId,
+        input.chatId,
+        input.senderNumber,
+        input.senderName ?? null,
+        input.direction,
+        input.kind,
+        input.text,
+        input.transcript ?? null,
+        input.analysis ?? null,
+        input.mediaPath ?? null,
+        input.mimeType ?? null,
+        JSON.stringify(input.rawPayload ?? {}),
+        input.occurredAt,
+        input.contactId ?? null,
+        input.contactNumber ?? input.senderNumber,
+        input.authorNumber ?? null,
+        input.authorName ?? null,
+        input.isFromMe ?? input.direction === "outbound"
+      ]
+    );
 
     return result.rowCount > 0;
   }
@@ -1046,6 +1070,11 @@ export class Repository {
     return Number(result.rows[0].id);
   }
 
+  /**
+   * SDMO-aware upsert: supports memory_tier so the optimizer can
+   * write Tier 1 facts directly without a separate query.
+   * memory_tier: 1 = always-hot (behavioral rules), 2 = working, 3 = archive
+   */
   async upsertFact(input: {
     factKey: string;
     subject: string;
@@ -1053,6 +1082,7 @@ export class Repository {
     value: string;
     status: string;
     confidence: number;
+    memoryTier?: number | null;
     sourceClaimId?: number | null;
     sourceContactNumber?: string | null;
     metadata?: Record<string, unknown>;
@@ -1060,9 +1090,9 @@ export class Repository {
     await this.pool.query(
       `
       INSERT INTO facts (
-        fact_key, subject, predicate, value, status, confidence, source_claim_id,
+        fact_key, subject, predicate, value, status, confidence, memory_tier, source_claim_id,
         source_contact_number, metadata, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, NOW())
       ON CONFLICT (fact_key)
       DO UPDATE SET
         subject = EXCLUDED.subject,
@@ -1070,6 +1100,7 @@ export class Repository {
         value = EXCLUDED.value,
         status = EXCLUDED.status,
         confidence = EXCLUDED.confidence,
+        memory_tier = COALESCE(EXCLUDED.memory_tier, facts.memory_tier),
         source_claim_id = EXCLUDED.source_claim_id,
         source_contact_number = EXCLUDED.source_contact_number,
         metadata = EXCLUDED.metadata,
@@ -1082,12 +1113,14 @@ export class Repository {
         input.value,
         input.status,
         input.confidence,
+        input.memoryTier ?? 2,
         input.sourceClaimId ?? null,
         input.sourceContactNumber ?? null,
         JSON.stringify(input.metadata ?? {})
       ]
     );
   }
+
 
   async upsertMemoryIndex(input: MemoryIndexEntry): Promise<number> {
     const result = await this.pool.query(
@@ -1348,17 +1381,32 @@ export class Repository {
     );
   }
 
-  async getTasksByTarget(targetNumber: string, status?: string): Promise<any[]> {
-    let query = "SELECT * FROM tasks WHERE target_number = $1";
+  /**
+   * Returns tasks for a target number.
+   *
+   * SDMO Phase 0: By default excludes COMPLETED and CANCELLED tasks to prevent
+   * unnecessary token cost. Pass `includeCompleted: true` to get the full history
+   * (e.g. for retrospective queries or the MCP on-demand path).
+   */
+  async getTasksByTarget(
+    targetNumber: string,
+    status?: string,
+    options?: { includeCompleted?: boolean }
+  ): Promise<any[]> {
     const params: any[] = [targetNumber];
-    if (status) {
-      query += " AND status = $2";
-      params.push(status);
-    }
-    query += " ORDER BY updated_at DESC";
+    const whereClauses: string[] = ["target_number = $1"];
 
+    if (status) {
+      params.push(status);
+      whereClauses.push(`status = $${params.length}`);
+    } else if (!options?.includeCompleted) {
+      // Default: active work only — exclude terminal statuses.
+      whereClauses.push("status NOT IN ('COMPLETED', 'CANCELLED')");
+    }
+
+    const query = `SELECT * FROM tasks WHERE ${whereClauses.join(" AND ")} ORDER BY updated_at DESC`;
     const result = await this.pool.query(query, params);
-    return result.rows;
+    return result.rows.map(parseTaskRow);
   }
 
   async listTasks(limit = 50): Promise<any[]> {
@@ -1372,7 +1420,7 @@ export class Repository {
       [limit]
     );
 
-    return result.rows;
+    return result.rows.map(parseTaskRow);
   }
 
   async getTasksBySourceMessageExternalId(messageExternalId: string): Promise<any[]> {
@@ -1386,7 +1434,7 @@ export class Repository {
       [messageExternalId]
     );
 
-    return result.rows;
+    return result.rows.map(parseTaskRow);
   }
 
   async getTaskById(taskId: number): Promise<any | null> {
@@ -1400,16 +1448,174 @@ export class Repository {
       [taskId]
     );
 
-    return result.rowCount ? result.rows[0] : null;
+    return result.rowCount ? parseTaskRow(result.rows[0]) : null;
   }
 
+  /**
+   * Returns the event log for a task.
+   *
+   * SDMO Phase 0: If a TASK_SUMMARY event exists (written by the Memory Optimizer),
+   * only that summary event plus all LIVE (non-archived) events created AFTER it
+   * are returned. This keeps the prompt window small on long-running tasks while
+   * preserving full history in Postgres (queryable via MCP on demand).
+   *
+   * Falls back to returning all non-archived events — fully backward compatible
+   * with tasks that have never been optimized.
+   */
   async getTaskEvents(taskId: number): Promise<any[]> {
+    // Find the most recent TASK_SUMMARY event (optimizer distillation baseline).
+    const summaryResult = await this.pool.query(
+      `SELECT id, created_at
+       FROM task_events
+       WHERE task_id = $1
+         AND event_type = 'TASK_SUMMARY'
+         AND is_archived = FALSE
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [taskId]
+    );
+
+    if (summaryResult.rowCount && summaryResult.rowCount > 0) {
+      const summary = summaryResult.rows[0];
+      // Return the summary event + all live events that came after it.
+      const result = await this.pool.query(
+        `SELECT *
+         FROM task_events
+         WHERE task_id = $1
+           AND is_archived = FALSE
+           AND (id = $2 OR created_at > $3)
+         ORDER BY created_at ASC`,
+        [taskId, summary.id, summary.created_at]
+      );
+      return result.rows;
+    }
+
+    // No optimizer run yet — return all non-archived events (original behaviour).
     const result = await this.pool.query(
-      "SELECT * FROM task_events WHERE task_id = $1 ORDER BY created_at ASC",
+      `SELECT *
+       FROM task_events
+       WHERE task_id = $1
+         AND is_archived = FALSE
+       ORDER BY created_at ASC`,
       [taskId]
     );
     return result.rows;
   }
+
+  /**
+   * Returns the full event history for a task, including archived entries.
+   * Used by the SDMO optimizer, which needs the raw timeline for distillation.
+   */
+  async getAllTaskEvents(taskId: number): Promise<any[]> {
+    const result = await this.pool.query(
+      `SELECT *
+       FROM task_events
+       WHERE task_id = $1
+       ORDER BY created_at ASC`,
+      [taskId]
+    );
+    return result.rows;
+  }
+
+  /**
+   * Returns the most recent TASK_SUMMARY event for a task, if present.
+   * Used by SDMO components that need the latest distillation checkpoint.
+   */
+  async getLatestTaskSummaryEvent(taskId: number): Promise<any | null> {
+    const result = await this.pool.query(
+      `SELECT *
+       FROM task_events
+       WHERE task_id = $1
+         AND event_type = 'TASK_SUMMARY'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [taskId]
+    );
+    return result.rowCount ? result.rows[0] : null;
+  }
+
+  /**
+   * SDMO Phase 2: Archives all task_events for a task that were created
+   * BEFORE the given checkpoint event ID. Called by the Memory Optimizer
+   * after it writes a TASK_SUMMARY event to collapse history.
+   *
+   * The checkpoint event itself (the TASK_SUMMARY) is NOT archived.
+   */
+  async archiveTaskEventsBeforeId(taskId: number, checkpointEventId: number): Promise<number> {
+    const result = await this.pool.query(
+      `UPDATE task_events
+       SET is_archived = TRUE
+       WHERE task_id = $1
+         AND id < $2
+         AND is_archived = FALSE
+         AND event_type != 'TASK_SUMMARY'`,
+      [taskId, checkpointEventId]
+    );
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * SDMO Phase 3: Records optimizer run metadata on the task.
+   * Sets last_optimized_at and increments sdmo_optimization_count.
+   */
+  async setTaskOptimizationMeta(taskId: number): Promise<void> {
+    await this.pool.query(
+      `UPDATE tasks
+       SET
+         last_optimized_at = NOW(),
+         sdmo_optimization_count = GREATEST(
+           COALESCE(sdmo_optimization_count, 0),
+           COALESCE((metadata->>'sdmo_optimization_count')::integer, 0)
+         ) + 1,
+         metadata = COALESCE(metadata, '{}'::jsonb)
+           - 'last_optimized_at'
+           - 'sdmo_optimization_count',
+         updated_at = NOW()
+       WHERE id = $1`,
+      [taskId]
+    );
+  }
+
+  /**
+   * SDMO Phase 3: Finds task IDs whose LLM calls exceeded the token threshold
+   * within the given lookback window. Only returns tasks that still exist and
+   * are not in a terminal state (COMPLETED / CANCELLED).
+   *
+   * Returns an array of unique task IDs (as numbers), ordered by most recent call.
+   */
+  async findThresholdBreachingTaskIds(input: {
+    tokenThreshold: number;
+    lookbackMinutes?: number;
+    limit?: number;
+  }): Promise<number[]> {
+    const lookbackMinutes = input.lookbackMinutes ?? 60;
+    const limit = input.limit ?? 50;
+
+    const result = await this.pool.query(
+      `SELECT sub.task_id
+       FROM (
+         SELECT
+           (metadata->>'sourceTaskId')::integer AS task_id,
+           MAX(created_at) AS latest_call
+         FROM llm_call_logs
+         WHERE total_tokens > $1
+           AND metadata->>'sourceTaskId' IS NOT NULL
+           AND created_at >= NOW() - ($2 * INTERVAL '1 minute')
+         GROUP BY (metadata->>'sourceTaskId')::integer
+       ) sub
+       JOIN tasks t ON t.id = sub.task_id
+       WHERE t.status NOT IN ('COMPLETED', 'CANCELLED')
+       ORDER BY sub.latest_call DESC
+       LIMIT $3`,
+      [input.tokenThreshold, lookbackMinutes, limit]
+    );
+
+    return result.rows
+      .map((row: any) => Number(row.task_id))
+      .filter((id: number) => Number.isFinite(id) && id > 0);
+  }
+
+
 
   async addScheduledJob(input: {
     jobType: string;
@@ -1838,6 +2044,15 @@ export class Repository {
     );
   }
 
+  /**
+   * Returns the recent context bundle for an inbound message.
+   *
+   * SDMO Phase 0:
+   *   - facts: filtered to memory_tier = 1 (Persistent / always-hot facts only).
+   *     Tier 2/3 facts are retrievable on-demand via MCP query.
+   *   - contacts: unchanged for now (unchanged global top-20).
+   *   - recentMessages: last 10 for this sender (unchanged).
+   */
   async getRecentContext(senderNumber: string): Promise<{
     recentMessages: any[];
     contacts: any[];
@@ -1862,12 +2077,17 @@ export class Repository {
         LIMIT 20
         `
       ),
+      // SDMO Phase 0: Only Tier 1 (Persistent) facts are auto-injected.
+      // Tier 1 = permanent agent behavioral rules ("Peter speaks Chinese only",
+      // contact policies, company-wide constraints). These never change at runtime.
+      // All other facts are available via MCP on-demand query.
       this.pool.query(
         `
-        SELECT fact_key, subject, predicate, value, status, confidence
+        SELECT fact_key, subject, predicate, value, status, confidence, memory_tier
         FROM facts
+        WHERE memory_tier = 1
         ORDER BY updated_at DESC
-        LIMIT 20
+        LIMIT 50
         `
       )
     ]);

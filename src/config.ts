@@ -27,9 +27,15 @@ export type AppConfig = {
   botAliases?: string[];
   botRoleDescription?: string;
   autonomyMode: "low-risk" | "wide";
-  enableWhatsapp: boolean;
   testerWhatsappNumbers: string[];
+  /** SDMO: Token count in a single LLM call that triggers the Memory Optimizer. Default: 15000 */
+  sdmoTokenThreshold: number;
+  /** SDMO: Minimum minutes between optimizer runs per task. Default: 30 */
+  sdmoOptimizerCooldownMinutes: number;
+  /** SDMO: Hard prompt budget for assembled runner context. Default: 20000 */
+  sdmoContextBudgetTokens: number;
 };
+
 
 function required(name: string): string {
   const value = process.env[name];
@@ -106,7 +112,10 @@ export function loadConfig(): AppConfig {
       .filter(Boolean),
     botRoleDescription: process.env.BOT_ROLE_DESCRIPTION?.trim() || undefined,
     autonomyMode: process.env.AUTONOMY_MODE === "wide" ? "wide" : "low-risk",
-    enableWhatsapp: true,
-    testerWhatsappNumbers: parseWhatsappNumberList(process.env.TESTER_WHATSAPP_NUMBERS)
+    testerWhatsappNumbers: parseWhatsappNumberList(process.env.TESTER_WHATSAPP_NUMBERS),
+    sdmoTokenThreshold: Number(process.env.SDMO_TOKEN_THRESHOLD ?? 15000),
+    sdmoOptimizerCooldownMinutes: Number(process.env.SDMO_OPTIMIZER_COOLDOWN_MINUTES ?? 30),
+    sdmoContextBudgetTokens: Number(process.env.SDMO_CONTEXT_BUDGET_TOKENS ?? 20000)
   };
+
 }

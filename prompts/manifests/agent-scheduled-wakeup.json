@@ -10,5 +10,8 @@
     "system/outreach-policy.md",
     "planners/agent-scheduled-wakeup.md"
   ],
-  "schemaFile": "shared/output-contracts/agent-action-schema.json"
+  "schemaFile": "shared/output-contracts/agent-action-schema.json",
+  "referenceFiles": [
+    "schema/postgres-schema.md"
+  ]
 }

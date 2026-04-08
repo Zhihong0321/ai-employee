@@ -22,4 +22,6 @@ export type DebugStage =
   | "outbound_send"
   | "retry"
   | "handoff"
-  | "scheduler";
+  | "scheduler"
+  | "optimization";
+

@@ -104,6 +104,7 @@ export class LlmRouter {
           hasSystemPrompt: Boolean(input.systemPrompt?.trim()),
           promptCharacters: input.prompt.length,
           schemaCharacters: input.schemaDescription?.length ?? 0,
+          referenceCharacters: input.referenceContext?.length ?? 0,
           responseCharacters: result.rawText.length,
           temperature: input.temperature ?? 0.1,
           ...(input.traceMetadata ?? {})
@@ -122,6 +123,7 @@ export class LlmRouter {
           hasSystemPrompt: Boolean(input.systemPrompt?.trim()),
           promptCharacters: input.prompt.length,
           schemaCharacters: input.schemaDescription?.length ?? 0,
+          referenceCharacters: input.referenceContext?.length ?? 0,
           temperature: input.temperature ?? 0.1,
           ...(input.traceMetadata ?? {})
         }

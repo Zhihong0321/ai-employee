@@ -16,6 +16,7 @@ export type LlmGenerateJsonInput = {
   model?: string;
   temperature?: number;
   schemaDescription?: string;
+  referenceContext?: string;
   traceMetadata?: Record<string, unknown>;
 };
 

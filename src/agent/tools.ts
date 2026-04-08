@@ -64,9 +64,30 @@ export const AT_SCHEDULE_WAKEUP: AgentToolDefinition = {
   }
 };
 
+export const AT_QUERY_DATABASE: AgentToolDefinition = {
+  name: "query_database",
+  description: "Query the agent's own Postgres database to retrieve memory, task history, contact facts, or any other stored information. SELECT only. Use this when you need to look up historical data, check past task outcomes, or retrieve contact-specific facts that are not in the current context.",
+  parameters: {
+    type: "object",
+    properties: {
+      sql: {
+        type: "string",
+        description: "A valid SELECT SQL statement. Use parameterized placeholders ($1, $2…) for any user-provided values. Hard row limit of 50 is enforced server-side."
+      },
+      params: {
+        type: "array",
+        items: { type: "string" },
+        description: "Optional. Positional parameters for the SQL query ($1, $2, …)."
+      }
+    },
+    required: ["sql"]
+  }
+};
+
 export const ALL_AGENT_TOOLS = [
   AT_UPDATE_TASK_STATUS,
   AT_SEND_MESSAGE,
   AT_CREATE_TASK,
-  AT_SCHEDULE_WAKEUP
+  AT_SCHEDULE_WAKEUP,
+  AT_QUERY_DATABASE
 ];

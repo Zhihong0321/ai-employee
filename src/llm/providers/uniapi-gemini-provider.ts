@@ -73,6 +73,8 @@ export class UniApiGeminiProvider implements LlmProvider {
     const prompt = [
       input.prompt,
       "",
+      input.referenceContext ? `Reference context:\n${input.referenceContext}` : "",
+      "",
       "Return valid JSON only.",
       input.schemaDescription ? `JSON shape:\n${input.schemaDescription}` : ""
     ]

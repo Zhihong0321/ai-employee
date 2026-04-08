@@ -97,9 +97,12 @@ function createConfig(skillsDir: string): AppConfig {
     bootstrapWhatsappNumber: undefined,
     botName: "AI Employee",
     autonomyMode: "low-risk",
-    enableWhatsapp: false,
-    testerWhatsappNumbers: []
+    testerWhatsappNumbers: [],
+    sdmoTokenThreshold: 15000,
+    sdmoOptimizerCooldownMinutes: 30,
+    sdmoContextBudgetTokens: 20000
   };
+
 }
 
 async function writeSkillPackage(root: string, folderName: string, manifest: Record<string, unknown>, instructions?: string) {

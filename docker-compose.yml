@@ -44,7 +44,6 @@ services:
       BOOTSTRAP_WHATSAPP_NUMBER: ${BOOTSTRAP_WHATSAPP_NUMBER:-}
       BOT_NAME: ${BOT_NAME:-AI Employee}
       AUTONOMY_MODE: ${AUTONOMY_MODE:-low-risk}
-      ENABLE_WHATSAPP: ${ENABLE_WHATSAPP:-false}
     ports:
       - "3001:3000"
     volumes:

@@ -26,8 +26,13 @@ import { AgentToolExecutor } from "./agent/executor.js";
 import { AgentPolicyEngine } from "./agent/policy-core.js";
 import { PromptRegistry } from "./prompts/prompt-registry.js";
 import { DebugService } from "./debug/debug-service.js";
+import { MemoryOptimizerService } from "./services/memory-optimizer-service.js";
+import { TokenThresholdWatcher } from "./services/token-threshold-watcher.js";
+import { PostgresMcpServer } from "./services/postgres-mcp-server.js";
 import { SkillRegistry } from "./skills/skill-registry.js";
+
 import { SkillSelector } from "./skills/skill-selector.js";
+
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -89,7 +94,8 @@ async function main(): Promise<void> {
   // Agentic Core
   const reactionClassifier = new ReactionClassifier(llmRouter, promptRegistry);
   const agentPolicyEngine = new AgentPolicyEngine(repository);
-  const agentToolExecutor = new AgentToolExecutor(repository, debugService, agentPolicyEngine);
+  const postgresMcpServer = new PostgresMcpServer(database.agentPool);
+  const agentToolExecutor = new AgentToolExecutor(repository, debugService, agentPolicyEngine, postgresMcpServer);
   const agentRunner = new AgentRunner(
     llmRouter,
     repository,
@@ -98,8 +104,23 @@ async function main(): Promise<void> {
     debugService,
     skillSelector,
     memoryBrowserService,
-    agentIdentityService
+    agentIdentityService,
+    config.sdmoContextBudgetTokens
   );
+  const memoryOptimizerService = new MemoryOptimizerService(repository, llmRouter, {
+    cooldownMinutes: config.sdmoOptimizerCooldownMinutes
+  });
+  const tokenThresholdWatcher = new TokenThresholdWatcher(
+    repository,
+    memoryOptimizerService,
+    debugService,
+    {
+      tokenThreshold: config.sdmoTokenThreshold,
+      optimizerCooldownMinutes: config.sdmoOptimizerCooldownMinutes
+    }
+  );
+
+
   const testerWhatsAppAgentService = new TesterWhatsAppAgentService(config, repository, debugService, agentService);
   const whatsappIntakeService = new WhatsAppIntakeService(
     repository,
@@ -152,14 +173,20 @@ async function main(): Promise<void> {
     getOwnWhatsappNumber: () => whatsappService?.getOwnNumber() ?? null,
     getWhatsAppRuntimeDiagnostics: () => whatsappService.getRuntimeDiagnostics(),
     listWhatsAppGroups: () => whatsappService.listParticipatingGroups(),
-    getWhatsAppGroupMetadata: (chatId: string) => whatsappService.getGroupMetadata(chatId)
+    getWhatsAppGroupMetadata: (chatId: string) => whatsappService.getGroupMetadata(chatId),
+    memoryOptimizerService,
+    tokenThresholdWatcher
   });
+
+
 
   app.listen(config.port, () => {
     console.log(`HTTP server listening on port ${config.port}`);
   });
 
   schedulerService.start();
+  tokenThresholdWatcher.start();
+
 
   await whatsappService.start();
 }

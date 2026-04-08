@@ -23,6 +23,10 @@ import { AgentIdentityService } from "../services/agent-identity-service.js";
 import { AuthorityPolicyService } from "../services/authority-policy-service.js";
 import { CompanyDbService } from "../services/company-db-service.js";
 import { CompanyDbConfigService } from "../services/company-db-config-service.js";
+import { MemoryOptimizerService } from "../services/memory-optimizer-service.js";
+import { TokenThresholdWatcher } from "../services/token-threshold-watcher.js";
+
+
 
 export function createApp(input: {
   config: AppConfig;
@@ -40,11 +44,13 @@ export function createApp(input: {
   authorityPolicyService: AuthorityPolicyService;
   companyDbService: CompanyDbService;
   companyDbConfigService: CompanyDbConfigService;
-  activateWhatsAppSession?: () => Promise<void>;
+  activateWhatsAppSession: () => Promise<void>;
   getOwnWhatsappNumber?: () => string | null;
-  getWhatsAppRuntimeDiagnostics?: () => Record<string, unknown>;
-  listWhatsAppGroups?: () => Promise<any[]>;
-  getWhatsAppGroupMetadata?: (chatId: string) => Promise<any>;
+  getWhatsAppRuntimeDiagnostics: () => Record<string, unknown>;
+  listWhatsAppGroups: () => Promise<any[]>;
+  getWhatsAppGroupMetadata: (chatId: string) => Promise<any>;
+  memoryOptimizerService?: MemoryOptimizerService;
+  tokenThresholdWatcher?: TokenThresholdWatcher;
 }) {
   const app = express();
   app.use(express.json({ limit: "5mb" }));
@@ -1112,7 +1118,6 @@ export function createApp(input: {
       renderDashboardPage({
         appName: "AI Employee Dashboard",
         botName: identity?.name ?? null,
-        whatsappEnabled: input.config.enableWhatsapp,
         adminProtected: Boolean(input.config.adminApiToken),
         health
       })
@@ -1392,13 +1397,6 @@ export function createApp(input: {
 
   app.post("/api/playground/whatsapp/activate", async (_req, res) => {
     try {
-      if (!input.activateWhatsAppSession) {
-        res.status(409).json({
-          error: "WhatsApp activation is not available on this server."
-        });
-        return;
-      }
-
       await input.activateWhatsAppSession();
       res.json({
         ok: true,
@@ -1448,13 +1446,6 @@ export function createApp(input: {
 
   app.get("/api/playground/whatsapp/groups", requireAdmin, async (_req, res) => {
     try {
-      if (!input.listWhatsAppGroups) {
-        res.status(409).json({
-          error: "WhatsApp gateway is not enabled for live group inspection."
-        });
-        return;
-      }
-
       const groups = await input.listWhatsAppGroups();
       res.json({
         ownNumber: input.getOwnWhatsappNumber?.() ?? null,
@@ -1469,13 +1460,6 @@ export function createApp(input: {
 
   app.get("/api/playground/whatsapp/groups/:chatId", requireAdmin, async (req, res) => {
     try {
-      if (!input.getWhatsAppGroupMetadata) {
-        res.status(409).json({
-          error: "WhatsApp gateway is not enabled for live group inspection."
-        });
-        return;
-      }
-
       const chatId = decodeURIComponent(String(req.params.chatId ?? "")).trim();
       if (!chatId) {
         res.status(400).json({ error: "chatId is required" });
@@ -1520,7 +1504,7 @@ export function createApp(input: {
 
   app.get("/api/playground/whatsapp/runtime-diagnostics", async (_req, res) => {
     res.json({
-      diagnostics: input.getWhatsAppRuntimeDiagnostics?.() ?? null
+      diagnostics: input.getWhatsAppRuntimeDiagnostics()
     });
   });
 
@@ -1791,6 +1775,78 @@ export function createApp(input: {
     });
 
     res.json({ records });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // SDMO — Memory Optimizer (Phase 2)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * POST /api/sdmo/optimize/:taskId
+   * Manually triggers the Memory Optimizer for a specific task.
+   * Used for testing, manual intervention, or backfilling.
+   * Requires admin token.
+   */
+  app.post("/api/sdmo/optimize/:taskId", requireAdmin, async (req, res) => {
+    const taskId = Number(req.params.taskId);
+    if (!Number.isFinite(taskId) || taskId <= 0) {
+      res.status(400).json({ error: "Invalid taskId. Must be a positive integer." });
+      return;
+    }
+
+    if (!input.memoryOptimizerService) {
+      res.status(503).json({ error: "MemoryOptimizerService is not available." });
+      return;
+    }
+
+    const result = await input.memoryOptimizerService.runForTask(taskId);
+    res.json(result);
+  });
+
+  /**
+   * GET /api/sdmo/task/:taskId
+   * Returns the current optimization metadata for a task:
+   * last_optimized_at, sdmo_optimization_count, and the current snapshot.
+   */
+  app.get("/api/sdmo/task/:taskId", requireAdmin, async (req, res) => {
+    const taskId = Number(req.params.taskId);
+    if (!Number.isFinite(taskId) || taskId <= 0) {
+      res.status(400).json({ error: "Invalid taskId." });
+      return;
+    }
+
+    const task = await input.repository.getTaskById(taskId);
+    if (!task) {
+      res.status(404).json({ error: "Task not found." });
+      return;
+    }
+
+    const events = await input.repository.getTaskEvents(taskId);
+
+    res.json({
+      taskId,
+      title: task.title,
+      status: task.status,
+      lastOptimizedAt: task.last_optimized_at ?? null,
+      optimizationCount: task.sdmo_optimization_count ?? 0,
+      snapshot: task.snapshot,
+      liveEventCount: events.length
+    });
+  });
+
+  /**
+   * POST /api/sdmo/watcher/poll
+   * Manually fires one watcher poll cycle (admin-only).
+   * Useful for testing: triggers optimizer without waiting for the next interval.
+   */
+  app.post("/api/sdmo/watcher/poll", requireAdmin, async (_req, res) => {
+    if (!input.tokenThresholdWatcher) {
+      res.status(503).json({ error: "TokenThresholdWatcher is not available." });
+      return;
+    }
+
+    await input.tokenThresholdWatcher.poll();
+    res.json({ ok: true, message: "Watcher poll cycle completed." });
   });
 
   return app;

@@ -56,6 +56,14 @@ export const AGENT_TOOL_POLICY_CATALOG: Record<string, AgentToolPolicySpec> = {
     sideEffectType: "scheduler",
     retryClass: "safe",
     idempotent: true
+  },
+  query_database: {
+    name: "query_database",
+    requiredArgs: ["sql"],
+    riskLevel: "read",
+    sideEffectType: "read",
+    retryClass: "safe",
+    idempotent: true
   }
 };
 
@@ -103,6 +111,15 @@ export class AgentPolicyEngine {
         return this.validateTaskCreation(input.args, metadata);
       case "schedule_wakeup":
         return this.validateWakeupSchedule(input.args, metadata, input.contextTaskId);
+      case "query_database":
+        // Execution-level guard (SELECT-only, hard row limit) is in PostgresMcpServer.
+        // Policy layer just confirms the SQL arg is non-empty.
+        return {
+          outcome: String(input.args.sql ?? "").trim() ? "allow" : "deny",
+          reason: String(input.args.sql ?? "").trim() ? "validated" : "missing_required_args:sql",
+          normalizedArgs: input.args,
+          metadata
+        };
       default:
         return {
           outcome: "allow",

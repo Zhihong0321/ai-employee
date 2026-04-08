@@ -9,6 +9,7 @@ type PromptManifest = {
   description?: string;
   systemFiles: string[];
   schemaFile?: string;
+  referenceFiles?: string[];
 };
 
 type PromptManifestFile = PromptManifest & {
@@ -22,6 +23,7 @@ export type ActivePromptPack = {
   versionHash: string;
   systemPrompt: string;
   schemaDescription?: string;
+  referenceContext?: string;
   sourceFiles: string[];
   metadata: Record<string, unknown>;
 };
@@ -61,6 +63,8 @@ export class PromptRegistry {
         metadata: {
           schemaFile: compiled.schemaFile,
           schemaDescription: compiled.schemaDescription,
+          referenceFiles: compiled.referenceFiles,
+          referenceContext: compiled.referenceContext,
           description: compiled.manifest.description ?? null
         }
       });
@@ -109,6 +113,8 @@ export class PromptRegistry {
       systemPrompt: active.content,
       schemaDescription:
         typeof active.metadata?.schemaDescription === "string" ? active.metadata.schemaDescription : undefined,
+      referenceContext:
+        typeof active.metadata?.referenceContext === "string" ? active.metadata.referenceContext : undefined,
       sourceFiles: Array.isArray(active.source_files) ? active.source_files : [],
       metadata: active.metadata ?? {}
     };
@@ -129,8 +135,10 @@ export class PromptRegistry {
     manifest: PromptManifest;
     systemPrompt: string;
     schemaDescription?: string;
+    referenceContext?: string;
     sourceFiles: string[];
     schemaFile?: string;
+    referenceFiles: string[];
     versionHash: string;
   }> {
     const manifestName = path.basename(manifestPath, ".json");
@@ -169,6 +177,23 @@ export class PromptRegistry {
       sourceFiles.push(manifest.schemaFile);
     }
 
+    const referenceFiles: string[] = [];
+    const referenceParts: string[] = [];
+    if (Array.isArray(manifest.referenceFiles)) {
+      for (const relativeFile of manifest.referenceFiles) {
+        if (typeof relativeFile !== "string" || !relativeFile.trim()) {
+          throw new Error(`Prompt manifest ${manifestName} contains an invalid referenceFiles entry`);
+        }
+
+        const absoluteReferenceFile = path.join(this.config.promptsDir, relativeFile);
+        const content = (await this.readRequiredTextFile(absoluteReferenceFile, manifestName, relativeFile)).trim();
+        referenceFiles.push(relativeFile);
+        sourceFiles.push(relativeFile);
+        referenceParts.push(`REFERENCE ARTIFACT: ${relativeFile}\n${content}`);
+      }
+    }
+    const referenceContext = referenceParts.length ? referenceParts.join("\n\n---\n\n") : undefined;
+
     const systemPrompt = systemParts.filter(Boolean).join("\n\n");
     const versionHash = crypto
       .createHash("sha256")
@@ -178,8 +203,10 @@ export class PromptRegistry {
           manifestName,
           systemFiles: manifest.systemFiles,
           schemaFile: manifest.schemaFile ?? null,
+          referenceFiles,
           systemPrompt,
-          schemaDescription: schemaDescription ?? null
+          schemaDescription: schemaDescription ?? null,
+          referenceContext: referenceContext ?? null
         })
       )
       .digest("hex");
@@ -189,8 +216,10 @@ export class PromptRegistry {
       manifest,
       systemPrompt,
       schemaDescription,
+      referenceContext,
       sourceFiles,
       schemaFile: manifest.schemaFile,
+      referenceFiles,
       versionHash
     };
   }
