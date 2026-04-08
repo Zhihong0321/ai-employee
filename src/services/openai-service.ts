@@ -5,7 +5,7 @@ import { AppConfig } from "../config.js";
 import { LlmRouter } from "../llm/llm-router.js";
 import { safeJsonParse } from "../lib/json.js";
 import { AGENT_ABILITY_BOUNDARY_POLICY, buildAgentAbilityProfile } from "../lib/agent-ability.js";
-import { appendTimeContextInstruction, buildPromptTimeContext } from "../lib/time-context.js";
+import { appendTimeContextInstruction, buildPromptTimeContext, normalizeAgentPlanTimes } from "../lib/time-context.js";
 import { AgentPlan, HealthReport } from "../types.js";
 import { PromptRegistry } from "../prompts/prompt-registry.js";
 import { ResolvedSkillContext } from "../skills/types.js";
@@ -209,10 +209,10 @@ ${AGENT_ABILITY_BOUNDARY_POLICY}`),
       }
     });
 
-    return {
+    return normalizeAgentPlanTimes({
       ...EMPTY_PLAN,
       ...parsed
-    };
+    }, timeContext.userTimezone);
   }
 
   async writeFinalReply(input: {

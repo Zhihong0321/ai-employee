@@ -1,5 +1,6 @@
 import { Repository } from "../database/repository.js";
 import { normalizePhoneNumber } from "../lib/phone.js";
+import { normalizePlannedIsoToUtc } from "../lib/time-context.js";
 import { normalizeTaskStatus } from "./task-core.js";
 
 export type ToolRiskLevel = "read" | "low" | "medium" | "high";
@@ -13,6 +14,13 @@ export type ToolPolicyDecision = {
   normalizedArgs: Record<string, any>;
   metadata: AgentToolPolicySpec;
   note?: string;
+};
+
+type ToolPolicyInput = {
+  toolName: string;
+  args: Record<string, any>;
+  contextTaskId?: number;
+  timeZone?: string | null;
 };
 
 export type AgentToolPolicySpec = {
@@ -70,11 +78,7 @@ export const AGENT_TOOL_POLICY_CATALOG: Record<string, AgentToolPolicySpec> = {
 export class AgentPolicyEngine {
   constructor(private readonly repository: Repository) {}
 
-  async validateToolAction(input: {
-    toolName: string;
-    args: Record<string, any>;
-    contextTaskId?: number;
-  }): Promise<ToolPolicyDecision> {
+  async validateToolAction(input: ToolPolicyInput): Promise<ToolPolicyDecision> {
     const metadata = AGENT_TOOL_POLICY_CATALOG[input.toolName];
     if (!metadata) {
       return {
@@ -108,7 +112,7 @@ export class AgentPolicyEngine {
       case "send_whatsapp_message":
         return this.validateWhatsappSend(input.args, metadata);
       case "create_task":
-        return this.validateTaskCreation(input.args, metadata);
+        return this.validateTaskCreation(input.args, metadata, input);
       case "schedule_wakeup":
         return this.validateWakeupSchedule(input.args, metadata, input.contextTaskId);
       case "query_database":
@@ -208,7 +212,11 @@ export class AgentPolicyEngine {
     };
   }
 
-  private async validateTaskCreation(args: Record<string, any>, metadata: AgentToolPolicySpec): Promise<ToolPolicyDecision> {
+  private async validateTaskCreation(
+    args: Record<string, any>,
+    metadata: AgentToolPolicySpec,
+    input: ToolPolicyInput
+  ): Promise<ToolPolicyDecision> {
     const title = String(args.title ?? "").trim();
     const details = String(args.details ?? "").trim();
     if (!title || !details) {
@@ -230,6 +238,11 @@ export class AgentPolicyEngine {
       };
     }
 
+    const taskTimezone = await this.resolveExecutionTimezone({
+      contextTaskId: input.contextTaskId,
+      timeZone: input.timeZone
+    });
+
     return {
       outcome: "allow",
       reason: "validated",
@@ -238,7 +251,7 @@ export class AgentPolicyEngine {
         title,
         details,
         target_number: args.target_number ? normalizePhoneNumber(String(args.target_number)) : null,
-        due_at: dueAt ? dueAt.toISOString() : null
+        due_at: dueAt ? normalizePlannedIsoToUtc(dueAt.toISOString(), taskTimezone) ?? dueAt.toISOString() : null
       },
       metadata
     };
@@ -271,6 +284,13 @@ export class AgentPolicyEngine {
       };
     }
 
+    const taskTimezone = await this.resolveExecutionTimezone(
+      {
+        contextTaskId
+      },
+      task
+    );
+
     const note = typeof contextTaskId === "number" && contextTaskId !== taskId ? "cross-task wakeup scheduling" : undefined;
     return {
       outcome: note ? "allow_with_note" : "allow",
@@ -278,12 +298,33 @@ export class AgentPolicyEngine {
       normalizedArgs: {
         ...args,
         task_id: taskId,
-        run_at: runAt.toISOString(),
+        run_at: normalizePlannedIsoToUtc(runAt.toISOString(), taskTimezone) ?? runAt.toISOString(),
         reason
       },
       metadata,
       note
     };
+  }
+
+  private async resolveExecutionTimezone(
+    input: { contextTaskId?: number; timeZone?: string | null },
+    task?: any | null
+  ): Promise<string | null> {
+    const explicitTimezone = input.timeZone?.trim();
+    if (explicitTimezone) {
+      return explicitTimezone;
+    }
+
+    if (task) {
+      return task?.timezone ?? task?.charter?.timeContext?.timezone ?? null;
+    }
+
+    if (!Number.isFinite(input.contextTaskId)) {
+      return null;
+    }
+
+    const contextTask = await this.repository.getTaskById(Number(input.contextTaskId));
+    return contextTask?.timezone ?? contextTask?.charter?.timeContext?.timezone ?? null;
   }
 }
 

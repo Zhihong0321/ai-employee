@@ -14,6 +14,19 @@ class FakeRepository {
       };
     }
 
+    if (taskId === 7) {
+      return {
+        id: 7,
+        status: "TODO",
+        timezone: "Asia/Kuala_Lumpur",
+        charter: {
+          timeContext: {
+            timezone: "Asia/Kuala_Lumpur"
+          }
+        }
+      };
+    }
+
     return null;
   }
 }
@@ -46,5 +59,37 @@ describe("policy core", () => {
 
     expect(result.outcome).toBe("handoff_required");
     expect(result.reason).toBe("autonomous_outreach_not_allowed");
+  });
+
+  test("normalizes scheduled timestamps with a provided timezone", async () => {
+    const engine = new AgentPolicyEngine(new FakeRepository() as any);
+    const result = await engine.validateToolAction({
+      toolName: "create_task",
+      args: {
+        title: "Add notes",
+        details: "Add notes for Kapar meeting",
+        due_at: "2026-04-08T16:52:00Z"
+      },
+      timeZone: "Asia/Kuala_Lumpur"
+    });
+
+    expect(result.outcome).toBe("allow");
+    expect(result.normalizedArgs.due_at).toBe("2026-04-08T08:52:00.000Z");
+  });
+
+  test("normalizes wakeup timestamps from the task timezone", async () => {
+    const engine = new AgentPolicyEngine(new FakeRepository() as any);
+    const result = await engine.validateToolAction({
+      toolName: "schedule_wakeup",
+      args: {
+        task_id: 7,
+        run_at: "2026-04-08T16:52:00Z",
+        reason: "Check reminder"
+      },
+      contextTaskId: 7
+    });
+
+    expect(result.outcome).toBe("allow");
+    expect(result.normalizedArgs.run_at).toBe("2026-04-08T08:52:00.000Z");
   });
 });

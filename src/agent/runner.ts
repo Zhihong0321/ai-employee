@@ -159,13 +159,17 @@ ${AGENT_ABILITY_BOUNDARY_POLICY}`);
           });
 
           for (const action of readActions) {
-            const result = await this.executor.execute(action.tool, action.args);
+            const result = await this.executor.execute(action.tool, action.args, undefined, undefined, {
+              timeZone: timeContext.userTimezone
+            });
             readResults.push({ tool: action.tool, result });
           }
 
           // If there are also effectful actions alongside the read, execute them now too
           if (effectActions.length > 0) {
-            await this.executor.executeAll(effectActions);
+            await this.executor.executeAll(effectActions, undefined, {
+              timeZone: timeContext.userTimezone
+            });
           }
 
           continue; // Go back for another LLM call with the read results
@@ -199,7 +203,9 @@ ${AGENT_ABILITY_BOUNDARY_POLICY}`);
         });
 
         if (decision.actions.length > 0) {
-          const results = await this.executor.executeAll(decision.actions);
+          const results = await this.executor.executeAll(decision.actions, undefined, {
+            timeZone: timeContext.userTimezone
+          });
           console.log(`[AgentRunner] Executed ${results.length} tools.`, results);
         }
         break;
@@ -350,12 +356,16 @@ ${AGENT_ABILITY_BOUNDARY_POLICY}`);
           });
 
           for (const action of readActions) {
-            const result = await this.executor.execute(action.tool, action.args, taskId);
+            const result = await this.executor.execute(action.tool, action.args, taskId, undefined, {
+              timeZone: timeContext.userTimezone
+            });
             readResults.push({ tool: action.tool, result });
           }
 
           if (effectActions.length > 0) {
-            await this.executor.executeAll(effectActions, taskId);
+            await this.executor.executeAll(effectActions, taskId, {
+              timeZone: timeContext.userTimezone
+            });
           }
 
           continue;
@@ -402,7 +412,9 @@ ${AGENT_ABILITY_BOUNDARY_POLICY}`);
 
         if (decision.actions.length > 0) {
           // We pass taskId as context so tool side-effects log back to this specific task
-          await this.executor.executeAll(decision.actions, taskId);
+          await this.executor.executeAll(decision.actions, taskId, {
+            timeZone: timeContext.userTimezone
+          });
         }
         break;
       }

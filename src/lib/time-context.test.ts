@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendTimeContextInstruction, buildPromptTimeContext, isTimeSensitiveText } from "./time-context.js";
+import {
+  appendTimeContextInstruction,
+  buildPromptTimeContext,
+  isTimeSensitiveText,
+  normalizeAgentPlanTimes,
+  normalizePlannedIsoToUtc
+} from "./time-context.js";
 
 test("buildPromptTimeContext uses stored contact timezone", () => {
   const context = buildPromptTimeContext(
@@ -41,4 +47,48 @@ test("isTimeSensitiveText catches relative-time questions and skips timeless fac
   assert.equal(isTimeSensitiveText("What is my meeting time today?"), true);
   assert.equal(isTimeSensitiveText("Remind me tomorrow at 9am"), true);
   assert.equal(isTimeSensitiveText("What is our company address?"), false);
+});
+
+test("normalizePlannedIsoToUtc interprets planner timestamps as local wall clock time", () => {
+  assert.equal(
+    normalizePlannedIsoToUtc("2026-04-08T16:52:00Z", "Asia/Kuala_Lumpur"),
+    "2026-04-08T08:52:00.000Z"
+  );
+});
+
+test("normalizeAgentPlanTimes converts task and reminder times using the contact timezone", () => {
+  const normalized = normalizeAgentPlanTimes(
+    {
+      category: "task",
+      summary: "Test",
+      replyText: "Okay",
+      claims: [],
+      contactUpdates: [],
+      facts: [],
+      tasks: [
+        {
+          title: "Add notes",
+          details: "Add notes for Kapar meeting",
+          dueAt: "2026-04-08T16:52:00Z"
+        }
+      ],
+      reminders: [
+        {
+          runAt: "2026-04-08T16:52:00Z",
+          targetNumber: "601121000099",
+          message: "Reminder"
+        }
+      ],
+      outboundMessages: [],
+      clarification: {
+        needed: false
+      },
+      companyQuery: null,
+      webSearchQuery: null
+    },
+    "Asia/Kuala_Lumpur"
+  );
+
+  assert.equal(normalized.tasks[0].dueAt, "2026-04-08T08:52:00.000Z");
+  assert.equal(normalized.reminders[0].runAt, "2026-04-08T08:52:00.000Z");
 });

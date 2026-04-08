@@ -17,6 +17,11 @@
 
 Latest completed milestone:
 
+- **2026-04-08:** Actual-time reminder normalization completed
+  - planner and tool-policy paths now interpret scheduled times as user-local wall clock before converting to UTC
+  - runner execution context now carries the resolved timezone into tool validation
+  - regression tests cover the Kuala Lumpur reminder case that previously fired 8 hours late
+
 - **2026-04-08:** Phase 5 ContextBudget Assembler completed
   - added `src/lib/context-budget.ts` with explicit layer priorities and trimming rules
   - inbound and wake-up runner payloads now use budgeted context instead of raw context bundles

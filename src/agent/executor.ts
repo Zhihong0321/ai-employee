@@ -9,6 +9,10 @@ export type AgentMessenger = {
   sendText: (targetNumber: string, text: string) => Promise<unknown>;
 };
 
+export type AgentToolExecutionContext = {
+  timeZone?: string | null;
+};
+
 export class AgentToolExecutor {
   private messenger?: AgentMessenger;
 
@@ -23,22 +27,33 @@ export class AgentToolExecutor {
     this.messenger = messenger;
   }
 
-  async executeAll(actions: Array<{ tool: string; args: Record<string, any> }>, contextTaskId?: number): Promise<Array<{ tool: string, result: string }>> {
+  async executeAll(
+    actions: Array<{ tool: string; args: Record<string, any> }>,
+    contextTaskId?: number,
+    executionContext?: AgentToolExecutionContext
+  ): Promise<Array<{ tool: string, result: string }>> {
     const runId = this.debugService.createRunId("tool_exec");
     const results = [];
     for (const action of actions) {
-      const result = await this.execute(action.tool, action.args, contextTaskId, runId);
+      const result = await this.execute(action.tool, action.args, contextTaskId, runId, executionContext);
       results.push({ tool: action.tool, result });
     }
     return results;
   }
 
-  async execute(toolName: string, args: Record<string, any>, contextTaskId?: number, runId?: string): Promise<string> {
+  async execute(
+    toolName: string,
+    args: Record<string, any>,
+    contextTaskId?: number,
+    runId?: string,
+    executionContext?: AgentToolExecutionContext
+  ): Promise<string> {
     try {
       const policyDecision = await this.policyEngine.validateToolAction({
         toolName,
         args,
-        contextTaskId
+        contextTaskId,
+        timeZone: executionContext?.timeZone ?? null
       });
 
       await this.debugService.log({
